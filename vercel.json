@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "name": "queuespotify",
   "cleanUrls": true,
   "buildCommand": "node build.js",
   "outputDirectory": "www",

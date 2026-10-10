@@ -51,7 +51,7 @@ const SpotifyAuth = (() => {
 
   function getRedirectUri() {
     if (isNative()) {
-      return 'queuedrop://callback';
+      return 'queuespotify://callback';
     }
     // Spotify redirect URI eşleşmesi birebirdir: "/" ile "/index.html"
     // ONUN için iki ayrı adrestir. Sunucu kökü index.html'e yönlendirdiğinde
@@ -123,7 +123,7 @@ const SpotifyAuth = (() => {
     let urlParams;
     if (customUrl) {
       try {
-        const dummyUrl = new URL(customUrl.replace(/^queuedrop:\/\//i, 'https://dummy.app/'));
+        const dummyUrl = new URL(customUrl.replace(/^(queuespotify|queuedrop):\/\//i, 'https://dummy.app/'));
         urlParams = dummyUrl.searchParams;
       } catch (e) {
         urlParams = new URLSearchParams(customUrl.split('?')[1] || '');
@@ -193,7 +193,7 @@ const SpotifyAuth = (() => {
   function initNativeListeners(onLoginSuccess, onLoginError) {
     if (isNative() && window.Capacitor?.Plugins?.App) {
       window.Capacitor.Plugins.App.addListener('appUrlOpen', async (data) => {
-        if (data.url && data.url.includes('queuedrop://callback')) {
+        if (data.url && (data.url.includes('queuespotify://callback') || data.url.includes('queuedrop://callback'))) {
           if (window.Capacitor.Plugins?.Browser) {
             await window.Capacitor.Plugins.Browser.close().catch(() => {});
           }

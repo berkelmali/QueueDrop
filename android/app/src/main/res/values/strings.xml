@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">QueueDrop</string>
-    <string name="title_activity_main">QueueDrop</string>
+    <string name="app_name">QueueSpotify</string>
+    <string name="title_activity_main">QueueSpotify</string>
     <string name="package_name">com.queuedrop.app</string>
     <string name="custom_url_scheme">com.queuedrop.app</string>
 </resources>

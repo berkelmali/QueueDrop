@@ -1,4 +1,4 @@
-# 🎵 QueueDrop
+# 🎵 QueueSpotify
 
 > **Akıllı Spotify Kuyruk Oluşturucu, Oynatıcı & Canlı Ritim Asistanı**  
 > Modern Web (PWA) ve Android (Capacitor) destekli, makine öğrenimi ve gerçek zamanlı DSP BPM tespiti ile güçlendirilmiş Spotify müzik deneyimi.
@@ -50,8 +50,9 @@ npm run build
 Proje Vercel ile tek tıkla çalışacak şekilde yapılandırılmıştır:
 
 1. Bu depoyu GitHub hesabınıza bağlayın veya [Vercel](https://vercel.com) üzerinden projeyi import edin.
-2. Vercel otomatik olarak `node build.js` komutunu çalıştıracak ve `www` klasörünü sunacaktır.
-3. Vercel'in oluşturduğu URL'yi (`https://your-domain.vercel.app/`) [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) panelinizdeki uygulamanızın **Redirect URIs** bölümüne ekleyin.
+2. Vercel otomatik olarak `node build.js` komutunu çalıştıracak ve `www` klasörünü sunacaktır (`name: "queuespotify"`).
+3. Canlı site adresi: `https://queuespotify.vercel.app/`
+4. Bu adresi [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) panelinizdeki uygulamanızın **Redirect URIs** bölümüne ekleyin.
 
 ---
 

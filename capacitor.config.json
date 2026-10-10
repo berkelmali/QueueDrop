@@ -1,6 +1,6 @@
 {
   "appId": "com.queuedrop.app",
-  "appName": "QueueDrop",
+  "appName": "QueueSpotify",
   "webDir": "www",
   "bundledWebRuntime": false,
   "backgroundColor": "#07090C",

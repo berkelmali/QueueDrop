@@ -1,6 +1,6 @@
 {
-  "name": "QueueDrop",
-  "short_name": "QueueDrop",
+  "name": "QueueSpotify",
+  "short_name": "QueueSpotify",
   "description": "Spotify kuyruğuna toplu şarkı ekle. Yapıştır. Bul. Çal.",
   "start_url": "./index.html",
   "scope": "./",

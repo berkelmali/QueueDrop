@@ -1,5 +1,5 @@
-// QueueDrop — Service Worker (PWA)
-const CACHE_NAME = 'queuedrop-v4';
+// QueueSpotify — Service Worker (PWA)
+const CACHE_NAME = 'queuespotify-v1';
 
 // Geliştirmede önbellek kapalı.
 // Sebep: loopback'te çalışırken service worker eski JS'i servis edebiliyor;

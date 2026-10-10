@@ -31,7 +31,7 @@ const App = (() => {
    * Initialize the application.
    */
   async function init() {
-    console.log('🎵 QueueDrop initializing...');
+    console.log('🎵 QueueSpotify initializing...');
 
     // Register Service Worker
     registerServiceWorker();
@@ -1207,7 +1207,7 @@ const App = (() => {
       return;
     }
 
-    const defaultName = `QueueDrop Mix (${new Date().toLocaleDateString('tr-TR')})`;
+    const defaultName = `QueueSpotify Mix (${new Date().toLocaleDateString('tr-TR')})`;
     UI.showSavePlaylistModal(defaultName, tracks.length, async (playlistName) => {
       const uris = tracks.map(t => t.uri || (t.id ? `spotify:track:${t.id}` : null)).filter(Boolean);
       if (uris.length === 0) {
@@ -1617,7 +1617,7 @@ const App = (() => {
             uri: 'spotify:track:demo_' + i,
             name: valid[i].track,
             artist: valid[i].artist || 'Gülşen',
-            album: 'QueueDrop Seçkisi',
+            album: 'QueueSpotify Seçkisi',
             albumImage: 'assets/logo.jpg',
             albumImageSmall: 'assets/logo.jpg',
             duration: mockDuration,

@@ -917,7 +917,7 @@ const RhythmEngine = (() => {
     return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
   }
 
-  function generateFallbackPalette(seedStr = 'QueueDrop') {
+  function generateFallbackPalette(seedStr = 'QueueSpotify') {
     let hash = 0;
     for (let i = 0; i < seedStr.length; i++) {
       hash = (hash << 5) - hash + seedStr.charCodeAt(i);
@@ -1086,7 +1086,7 @@ const RhythmEngine = (() => {
       this.track = null;
       this.audioFeatures = null;
       this.profile = { energy: 0.7, kickForce: 2.0, waveAmp: 25, particleSpeed: 1.5, bassIntensity: 0.6, midIntensity: 0.5, trebleIntensity: 0.4 };
-      this.palette = generateFallbackPalette('QueueDrop');
+      this.palette = generateFallbackPalette('QueueSpotify');
 
       // Frekans Spektrumu
       this.freqBands = new Float32Array(FREQ_BANDS);

@@ -1,7 +1,7 @@
 {
-  "name": "queuedrop",
+  "name": "queuespotify",
   "version": "1.1.0",
-  "description": "QueueDrop — Spotify Queue Builder Android App",
+  "description": "QueueSpotify — Akıllı Spotify Kuyruk Oluşturucu, Oynatıcı & Canlı Ritim Asistanı",
   "main": "index.html",
   "scripts": {
     "build": "node build.js",

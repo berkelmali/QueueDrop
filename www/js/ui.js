@@ -1088,7 +1088,10 @@ const UI = (() => {
 
   function applyTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
-    try { localStorage.setItem('queuedrop_theme', theme); } catch (e) { /* yok sayılır */ }
+    try { 
+      localStorage.setItem('queuespotify_theme', theme); 
+      localStorage.setItem('queuedrop_theme', theme); 
+    } catch (e) { /* yok sayılır */ }
     const btn = byId('theme-toggle');
     if (btn) {
       btn.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');

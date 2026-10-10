@@ -649,7 +649,7 @@ const SpotifyAPI = (() => {
       throw new Error('Kaydedilecek şarkı bulunamadı');
     }
 
-    const name = (playlistName && playlistName.trim()) ? playlistName.trim() : `QueueDrop Mix (${new Date().toLocaleDateString('tr-TR')})`;
+    const name = (playlistName && playlistName.trim()) ? playlistName.trim() : `QueueSpotify Mix (${new Date().toLocaleDateString('tr-TR')})`;
     
     // Create new playlist via modern /me/playlists endpoint
     let playlist;
@@ -658,7 +658,7 @@ const SpotifyAPI = (() => {
         method: 'POST',
         body: JSON.stringify({
           name,
-          description: 'QueueDrop — Akıllı Kuyruk Yöneticisi ile oluşturuldu.',
+          description: 'QueueSpotify — Akıllı Kuyruk Yöneticisi ile oluşturuldu.',
           public: false,
         }),
       });
@@ -674,7 +674,7 @@ const SpotifyAPI = (() => {
           method: 'POST',
           body: JSON.stringify({
             name,
-            description: 'QueueDrop — Akıllı Kuyruk Yöneticisi ile oluşturuldu.',
+            description: 'QueueSpotify — Akıllı Kuyruk Yöneticisi ile oluşturuldu.',
             public: false,
           }),
         });
