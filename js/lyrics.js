@@ -202,6 +202,7 @@ const LyricsEngine = (() => {
     }
 
     // 2. Kademe: LRCLIB API ile Tam Arama
+    let serviceUnavailable = false;
     try {
       const params = new URLSearchParams({
         track_name: cleanTitle,
@@ -211,9 +212,11 @@ const LyricsEngine = (() => {
         params.append('duration', String(Math.round(durationMs / 1000)));
       }
 
-      const res = await fetch(`${LRCLIB_BASE_URL}/get?${params.toString()}`, {
-        headers: { 'User-Agent': 'QueueDrop/1.0.0 (https://github.com/QueueDrop)' }
-      });
+      const headers = (typeof window === 'undefined')
+        ? { 'User-Agent': 'QueueSpotify/1.0.0 (https://queuespotify.vercel.app)' }
+        : {};
+
+      const res = await fetch(`${LRCLIB_BASE_URL}/get?${params.toString()}`, { headers });
 
       if (res.ok) {
         const data = await res.json();
@@ -240,50 +243,55 @@ const LyricsEngine = (() => {
           lyricsCache.set(cacheKey, result);
           return result;
         }
+      } else if (res.status === 503 || res.status === 429) {
+        serviceUnavailable = true;
       }
     } catch (err) {
-      console.warn('LRCLIB exact get error:', err.message);
+      // Ağ hatası (çevrimdışı vb.)
     }
 
-    // 3. Kademe: LRCLIB Genişletilmiş Arama Fallback
-    try {
-      const query = `${cleanTitle} ${artistName || ''}`.trim();
-      const res = await fetch(`${LRCLIB_BASE_URL}/search?q=${encodeURIComponent(query)}`, {
-        headers: { 'User-Agent': 'QueueDrop/1.0.0 (https://github.com/QueueDrop)' }
-      });
+    // 3. Kademe: LRCLIB Genişletilmiş Arama Fallback (Servis 503/429 vermediyse dene)
+    if (!serviceUnavailable) {
+      try {
+        const query = `${cleanTitle} ${artistName || ''}`.trim();
+        const headers = (typeof window === 'undefined')
+          ? { 'User-Agent': 'QueueSpotify/1.0.0 (https://queuespotify.vercel.app)' }
+          : {};
+        const res = await fetch(`${LRCLIB_BASE_URL}/search?q=${encodeURIComponent(query)}`, { headers });
 
-      if (res.ok) {
-        const items = await res.json();
-        if (Array.isArray(items) && items.length > 0) {
-          // Senkronize olan ilk sonucu tercih et
-          const matched = items.find(i => i.syncedLyrics) || items[0];
-          if (matched.syncedLyrics) {
-            const lines = parseLRC(matched.syncedLyrics);
-            if (lines.length > 0) {
+        if (res.ok) {
+          const items = await res.json();
+          if (Array.isArray(items) && items.length > 0) {
+            // Senkronize olan ilk sonucu tercih et
+            const matched = items.find(i => i.syncedLyrics) || items[0];
+            if (matched.syncedLyrics) {
+              const lines = parseLRC(matched.syncedLyrics);
+              if (lines.length > 0) {
+                const result = {
+                  synced: true,
+                  lines,
+                  plainLyrics: matched.plainLyrics || lines.map(l => l.text).join('\n'),
+                  source: 'lrclib-search',
+                };
+                lyricsCache.set(cacheKey, result);
+                return result;
+              }
+            }
+            if (matched.plainLyrics) {
               const result = {
-                synced: true,
-                lines,
-                plainLyrics: matched.plainLyrics || lines.map(l => l.text).join('\n'),
-                source: 'lrclib-search',
+                synced: false,
+                lines: [],
+                plainLyrics: matched.plainLyrics,
+                source: 'lrclib-search-plain',
               };
               lyricsCache.set(cacheKey, result);
               return result;
             }
           }
-          if (matched.plainLyrics) {
-            const result = {
-              synced: false,
-              lines: [],
-              plainLyrics: matched.plainLyrics,
-              source: 'lrclib-search-plain',
-            };
-            lyricsCache.set(cacheKey, result);
-            return result;
-          }
         }
+      } catch (err) {
+        // Genişletilmiş arama hatası
       }
-    } catch (err) {
-      console.warn('LRCLIB search fallback error:', err.message);
     }
 
     // Hiçbir söz bulunamazsa boş sonuç dön

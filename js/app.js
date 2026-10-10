@@ -196,6 +196,9 @@ const App = (() => {
   function setupEventListeners() {
     // Hook real playback trigger from UI (Queue items or search result cards)
     UI.setOnPlayTrack(handlePlayTrack);
+    if (typeof UI.setOnRhythmOpen === 'function') {
+      UI.setOnRhythmOpen(handleRhythmClick);
+    }
 
     // Client ID save → advance to step 2
     const saveClientIdBtn = document.getElementById('save-client-id');
@@ -629,6 +632,13 @@ const App = (() => {
   }
 
   /**
+   * Alias / Polling helper for playback state
+   */
+  async function pollPlayerState() {
+    return await fetchLiveQueue();
+  }
+
+  /**
    * Start a 1-second timer to smoothly update the progress bar.
    */
   function startProgressTimer() {
@@ -817,7 +827,7 @@ const App = (() => {
 
         // Spotify oynatıcısının yeni şarkıyı tescil etmesi için kısa poll
         setTimeout(async () => {
-          await pollPlayerState();
+          await fetchLiveQueue();
           if (btn) {
             btn.classList.remove('playing');
             btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';

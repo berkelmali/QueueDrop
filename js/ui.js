@@ -783,6 +783,14 @@ const UI = (() => {
     }
   }
 
+  let lastNowPlayingData = null;
+  let lastPlayingTrack = null;
+  let onRhythmOpenHandler = null;
+
+  function setOnRhythmOpen(handler) {
+    onRhythmOpenHandler = handler;
+  }
+
   function renderNowPlaying(data) {
     const miniPlayer = byId('mini-player');
 
@@ -801,6 +809,9 @@ const UI = (() => {
       setAmbient(null);
       return;
     }
+
+    lastNowPlayingData = data;
+    lastPlayingTrack = data.track;
 
     const { track, isPlaying, progressMs, durationMs } = data;
     setNowPlayingState('playing');
@@ -911,8 +922,26 @@ const UI = (() => {
             : `Şarkının Hesaplanmış Temposu: ${bpm} BPM (Ritim ekranı için tıkla)`);
       if (!npBpmBadge._hasClickListener) {
         npBpmBadge._hasClickListener = true;
+        npBpmBadge.style.cursor = 'pointer';
         npBpmBadge.addEventListener('click', () => {
-          openRhythmScreen();
+          if (typeof onRhythmOpenHandler === 'function') {
+            onRhythmOpenHandler();
+          } else {
+            openRhythmScreen(lastPlayingTrack, lastNowPlayingData);
+          }
+        });
+      }
+    }
+    if (miniBpmBadge) {
+      if (!miniBpmBadge._hasClickListener) {
+        miniBpmBadge._hasClickListener = true;
+        miniBpmBadge.style.cursor = 'pointer';
+        miniBpmBadge.addEventListener('click', () => {
+          if (typeof onRhythmOpenHandler === 'function') {
+            onRhythmOpenHandler();
+          } else {
+            openRhythmScreen(lastPlayingTrack, lastNowPlayingData);
+          }
         });
       }
     }
@@ -1241,11 +1270,63 @@ const UI = (() => {
 
   let rhythmCallbacks = null;
 
+  function updateRhythmFooterHint(mood) {
+    const hintEl = byId('rhythm-hint-text') || document.querySelector('.rhythm-footer-hint span');
+    if (!hintEl) return;
+    if (mood === 'pulse') {
+      hintEl.textContent = '⚡ Ekrana dokunarak veya tıklayarak lazer şok dalgası tetikleyin';
+    } else if (mood === 'aurora') {
+      hintEl.textContent = '🌌 Ekrana dokunarak veya tıklayarak kozmik ışık dalgası yayın';
+    } else {
+      hintEl.textContent = '✨ Ekrana dokunarak veya tıklayarak lav dalgası yayabilirsiniz';
+    }
+  }
+
   function openRhythmScreen(track, nowPlayingData, callbacks = {}, audioFeatures = null, volumePercent = 70) {
     const screen = byId('rhythm-screen');
     if (!screen) return;
 
-    rhythmCallbacks = callbacks;
+    if (!track) {
+      track = lastPlayingTrack || lastNowPlayingData?.track;
+      if (!track) {
+        const npTitle = byId('np-title')?.textContent?.trim();
+        const npArtist = byId('np-artist')?.textContent?.trim();
+        const npArt = byId('np-album-art')?.src;
+        if (npTitle && npTitle !== '—') {
+          track = {
+            name: npTitle,
+            artist: npArtist || '',
+            albumImage: npArt || 'assets/logo.jpg',
+            bpm: 120
+          };
+        }
+      }
+    }
+
+    if (!nowPlayingData) {
+      nowPlayingData = lastNowPlayingData || {
+        track: track,
+        isPlaying: true,
+        progressMs: 0,
+        durationMs: (track && track.duration) || 210000,
+      };
+    }
+
+    const safeCallbacks = {
+      onPlayPause: callbacks?.onPlayPause || (() => {
+        const btn = byId('ctrl-play-pause') || byId('mini-play-pause');
+        if (btn) btn.click();
+      }),
+      onNext: callbacks?.onNext || (() => {
+        const btn = byId('ctrl-next') || byId('mini-next');
+        if (btn) btn.click();
+      }),
+      onPrev: callbacks?.onPrev || (() => {
+        const btn = byId('ctrl-prev');
+        if (btn) btn.click();
+      }),
+    };
+    rhythmCallbacks = safeCallbacks;
     screen.style.display = 'flex';
     document.body.style.overflow = 'hidden';
 
@@ -1278,7 +1359,9 @@ const UI = (() => {
           chip.onclick = () => {
             moodChips.forEach(c => c.classList.remove('active'));
             chip.classList.add('active');
-            visualizerInstance.setMood(chip.dataset.mood);
+            const mood = chip.dataset.mood;
+            visualizerInstance.setMood(mood);
+            updateRhythmFooterHint(mood);
           };
         });
 
@@ -1374,7 +1457,9 @@ const UI = (() => {
         visualizerInstance.setAudioFeatures(audioFeatures);
       }
       visualizerInstance.setVolumeLevel(volumePercent);
-      visualizerInstance.setTrack(track);
+      if (track) {
+        visualizerInstance.setTrack(track);
+      }
       if (nowPlayingData) {
         visualizerInstance.setPlaybackState({
           isPlaying: nowPlayingData.isPlaying,
@@ -1383,9 +1468,12 @@ const UI = (() => {
         });
       }
       visualizerInstance.start();
+      updateRhythmFooterHint(visualizerInstance.mood || 'lava');
     }
 
-    updateRhythmTrack(track, audioFeatures);
+    if (track) {
+      updateRhythmTrack(track, audioFeatures);
+    }
     if (nowPlayingData) {
       updateRhythmPlayback(nowPlayingData, volumePercent);
     }
@@ -1746,6 +1834,7 @@ const UI = (() => {
     setPremiumWarning,
     applyAmbientFrom,
     setOnPlayTrack,
+    setOnRhythmOpen,
     toggleAudioPreview,
     stopAudioPreview,
     showSavePlaylistModal,
