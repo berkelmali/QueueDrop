@@ -1,0 +1,240 @@
+/* ============================================================
+   QueueDrop — Design Tokens
+   Kaynak: design-system/tokens.json  (WCAG 2.1 AA doğrulandı)
+   Bu dosyada olmayan bir renk / ölçü / süre tasarıma ait değildir.
+   ============================================================ */
+
+/* Inter, index.html'de <link> ile yüklenir — @import render'ı bloklar. */
+
+/* ---------- LIGHT (varsayılan token seti) ---------- */
+:root {
+  color-scheme: light dark;
+
+  /* Zemin & yüzeyler */
+  --color-bg: #F6F7F6;
+  --color-surface: #FFFFFF;
+  --color-surface-2: #FFFFFF;
+  --color-surface-3: #EFF2F0;
+  --color-surface-sunken: #ECEFED;
+
+  /* Metin */
+  --color-text: #0D1411;
+  --color-text-muted: #59635F;
+  --color-text-faint: #5E6864;
+
+  /* Marka & durum */
+  --color-primary: #0B7D36;
+  --color-primary-strong: #096A2D;
+  --color-on-primary: #FFFFFF;
+  --color-accent: #4B32D4;
+  --color-success: #0B7D36;
+  --color-warning: #8A5300;
+  --color-danger: #B3261E;
+
+  /* Durum zeminleri */
+  --color-success-bg: rgba(11, 125, 54, 0.10);
+  --color-warning-bg: rgba(138, 83, 0, 0.10);
+  --color-danger-bg: rgba(179, 38, 30, 0.10);
+  --color-primary-bg: rgba(11, 125, 54, 0.08);
+
+  /* Çizgiler */
+  --color-border: #D8DEDA;
+  --color-border-strong: #B7C0BB;
+  --color-focus: #0B7D36;
+
+  /* Cam katman (yüzen yüzeyler) */
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(13, 20, 17, 0.08);
+  --glass-blur: 18px;
+
+  /* Albüm kapağından türetilen ortam rengi — JS doldurur, yoksa aurora'ya düşer */
+  --np-ambient: rgba(11, 125, 54, 0.30);
+
+  /* Aurora zemin */
+  --aurora-1: rgba(11, 125, 54, 0.16);
+  --aurora-2: rgba(75, 50, 212, 0.10);
+  --aurora-3: rgba(11, 125, 54, 0.06);
+
+  --overlay: rgba(13, 20, 17, 0.45);
+  --shadow-color: 150 8% 20%;
+
+  /* ---------- Tipografi (1.25 oran, 16px taban) ---------- */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --text-xs: 0.8125rem;   /* 13px — yalnız meta/etiket */
+  --text-sm: 0.9375rem;   /* 15px — gövde tabanı, bunun altına inilmez */
+  --text-base: 1rem;      /* 16px */
+  --text-md: 1.125rem;    /* 18px */
+  --text-lg: 1.375rem;    /* 22px */
+  --text-xl: 1.75rem;     /* 28px */
+  --text-2xl: 2.125rem;   /* 34px */
+  --text-hero: 2.75rem;   /* 44px */
+
+  --leading-tight: 1.18;
+  --leading-snug: 1.35;
+  --leading-normal: 1.55;
+  --tracking-tight: -0.02em;
+  --tracking-wide: 0.08em;
+
+  --measure: 64ch;
+
+  /* ---------- Boşluk (4px ızgara) ---------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* ---------- Yarıçap ---------- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-2xl: 28px;
+  --radius-pill: 999px;
+
+  /* ---------- Gölge ---------- */
+  --shadow-1: 0 1px 2px hsl(var(--shadow-color) / 0.10), 0 1px 3px hsl(var(--shadow-color) / 0.08);
+  --shadow-2: 0 4px 10px hsl(var(--shadow-color) / 0.12), 0 2px 4px hsl(var(--shadow-color) / 0.08);
+  --shadow-3: 0 12px 28px hsl(var(--shadow-color) / 0.18), 0 4px 10px hsl(var(--shadow-color) / 0.10);
+  --shadow-primary: 0 6px 20px rgba(11, 125, 54, 0.28);
+
+  /* ---------- Hareket ---------- */
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --ease-spring: cubic-bezier(.34, 1.4, .64, 1);
+  --dur-1: 160ms;
+  --dur-2: 220ms;
+  --dur-3: 320ms;
+
+  /* ---------- Dokunma & katman ---------- */
+  --tap-min: 44px;
+  --z-base: 1;
+  --z-sticky: 20;
+  --z-mini: 40;
+  --z-modal: 100;
+  --z-toast: 200;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* ---------- DARK ---------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #0b0d12;
+    --color-surface: #131720;
+    --color-surface-2: #1b202c;
+    --color-surface-3: #242b3b;
+    --color-surface-sunken: #08090d;
+
+    --color-text: #f3f4f6;
+    --color-text-muted: #9ca3af;
+    --color-text-faint: #6b7280;
+
+    --color-primary: #1ed760;
+    --color-primary-strong: #1db954;
+    --color-on-primary: #000000;
+    --color-accent: #818cf8;
+    --color-success: #22c55e;
+    --color-warning: #f59e0b;
+    --color-danger: #ef4444;
+
+    --color-success-bg: rgba(34, 197, 94, 0.12);
+    --color-warning-bg: rgba(245, 158, 11, 0.12);
+    --color-danger-bg: rgba(239, 68, 68, 0.12);
+    --color-primary-bg: rgba(30, 215, 96, 0.12);
+
+    --color-border: rgba(255, 255, 255, 0.08);
+    --color-border-strong: rgba(255, 255, 255, 0.16);
+    --color-focus: #1ed760;
+
+    --glass-bg: rgba(19, 23, 32, 0.82);
+    --glass-border: rgba(255, 255, 255, 0.08);
+
+    --np-ambient: rgba(30, 215, 96, 0.15);
+    --aurora-1: rgba(30, 215, 96, 0.04);
+    --aurora-2: rgba(99, 102, 241, 0.03);
+    --aurora-3: rgba(0, 0, 0, 0);
+
+    --overlay: rgba(0, 0, 0, 0.72);
+    --shadow-color: 220 40% 2%;
+    --shadow-primary: 0 2px 10px rgba(0, 0, 0, 0.35);
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #0b0d12;
+  --color-surface: #131720;
+  --color-surface-2: #1b202c;
+  --color-surface-3: #242b3b;
+  --color-surface-sunken: #08090d;
+
+  --color-text: #f3f4f6;
+  --color-text-muted: #9ca3af;
+  --color-text-faint: #6b7280;
+
+  --color-primary: #1ed760;
+  --color-primary-strong: #1db954;
+  --color-on-primary: #000000;
+  --color-accent: #818cf8;
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+
+  --color-success-bg: rgba(34, 197, 94, 0.12);
+  --color-warning-bg: rgba(245, 158, 11, 0.12);
+  --color-danger-bg: rgba(239, 68, 68, 0.12);
+  --color-primary-bg: rgba(30, 215, 96, 0.12);
+
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+  --color-focus: #1ed760;
+
+  --glass-bg: rgba(19, 23, 32, 0.82);
+  --glass-border: rgba(255, 255, 255, 0.08);
+
+  --np-ambient: rgba(30, 215, 96, 0.12);
+  --aurora-1: rgba(30, 215, 96, 0.03);
+  --aurora-2: rgba(255, 255, 255, 0.01);
+  --aurora-3: rgba(0, 0, 0, 0);
+
+  --overlay: rgba(0, 0, 0, 0.72);
+  --shadow-color: 220 40% 2%;
+  --shadow-primary: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+/* ---------- Odak halkası (tek tanım, her yerde aynı) ---------- */
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Ekran değişince ui.js başlığa odak veriyor (ekran okuyucu yeni ekranın
+   neresi olduğunu duysun diye). Ama bu programatik odak, fare kullanıcısına
+   başlığın etrafında bir halka olarak görünüyor — etkileşimli olmayan bir
+   öğede yanlış sinyal. Halka yalnız başlıklarda kapatılır; düğme, giriş
+   alanı ve bağlantılarda aynen durur. */
+h1[tabindex="-1"]:focus,
+h2[tabindex="-1"]:focus,
+h3[tabindex="-1"]:focus {
+  outline: none;
+}
+
+/* ---------- Hareket azaltma ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

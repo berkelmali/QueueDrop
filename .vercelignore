@@ -1,0 +1,15 @@
+android
+agency-agents
+awesome-public-datasets
+Claude outputs
+design-system
+OpenResearch
+test
+_backup_predesign
+*.bat
+api-test.js
+smoke-test.js
+AUDIT-REPORT.md
+.git
+.github
+node_modules

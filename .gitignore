@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Deployments & Cache
+.vercel/
+.firebase/
+
+# Android generated files & caches
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/capacitor-cordova-android-plugins/
+*.apk
+*.aab
+
+# System & Editor
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+*.iml

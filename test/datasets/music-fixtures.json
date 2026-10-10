@@ -1,0 +1,111 @@
+{
+  "description": "Awesome Public Datasets & Spotify Catalog Test Fixtures",
+  "version": "1.0.0",
+  "fixtures": [
+    {
+      "category": "standard",
+      "input": "Blinding Lights - The Weeknd",
+      "expected": [{ "track": "Blinding Lights", "artist": "The Weeknd" }]
+    },
+    {
+      "category": "turkish_standard",
+      "input": "Kuzu Kuzu - Tarkan",
+      "expected": [{ "track": "Kuzu Kuzu", "artist": "Tarkan" }]
+    },
+    {
+      "category": "turkish_unspaced_arrow",
+      "input": "Canın Sağolsun-gülşen → Dan Dan-gülşen",
+      "expected": [
+        { "track": "Canın Sağolsun", "artist": "gülşen" },
+        { "track": "Dan Dan", "artist": "gülşen" }
+      ]
+    },
+    {
+      "category": "hyphenated_artist",
+      "input": "Take On Me - A-ha",
+      "expected": [{ "track": "Take On Me", "artist": "A-ha" }]
+    },
+    {
+      "category": "hyphenated_track_with_artist",
+      "input": "Anti-Hero - Taylor Swift",
+      "expected": [{ "track": "Anti-Hero", "artist": "Taylor Swift" }]
+    },
+    {
+      "category": "single_hyphenated_word_no_artist",
+      "input": "Spider-Man",
+      "expected": [{ "track": "Spider-Man", "artist": "" }]
+    },
+    {
+      "category": "single_hyphenated_name_no_artist",
+      "input": "Jay-Z",
+      "expected": [{ "track": "Jay-Z", "artist": "" }]
+    },
+    {
+      "category": "featuring_bracketed",
+      "input": "Levitating (feat. DaBaby) - Dua Lipa",
+      "expected": [{ "track": "Levitating (feat. DaBaby)", "artist": "Dua Lipa" }]
+    },
+    {
+      "category": "featuring_spaced",
+      "input": "Save Your Tears ft. Ariana Grande - The Weeknd",
+      "expected": [{ "track": "Save Your Tears ft. Ariana Grande", "artist": "The Weeknd" }]
+    },
+    {
+      "category": "remastered_suffix",
+      "input": "Bohemian Rhapsody - 2011 Remaster - Queen",
+      "expected": [{ "track": "Bohemian Rhapsody", "artist": "2011 Remaster - Queen" }]
+    },
+    {
+      "category": "diacritics_french_spanish_nordic",
+      "input": "Despechá - Rosalía -> Partition - Beyoncé -> Lean On - Major Lazer, MØ",
+      "expected": [
+        { "track": "Despechá", "artist": "Rosalía" },
+        { "track": "Partition", "artist": "Beyoncé" },
+        { "track": "Lean On", "artist": "Major Lazer, MØ" }
+      ]
+    },
+    {
+      "category": "numbered_multiline",
+      "input": "1. Şımarık - Tarkan\n2) Ya Sonra - Ajda Pekkan\n[3] Cambaz - Mor ve Ötesi",
+      "expected": [
+        { "track": "Şımarık", "artist": "Tarkan" },
+        { "track": "Ya Sonra", "artist": "Ajda Pekkan" },
+        { "track": "Cambaz", "artist": "Mor ve Ötesi" }
+      ]
+    },
+    {
+      "category": "semicolon_and_arrows",
+      "input": "Flowers - Miley Cyrus ; As It Was - Harry Styles ➜ Stay - Kid LAROI",
+      "expected": [
+        { "track": "Flowers", "artist": "Miley Cyrus" },
+        { "track": "As It Was", "artist": "Harry Styles" },
+        { "track": "Stay", "artist": "Kid LAROI" }
+      ]
+    },
+    {
+      "category": "track_only",
+      "input": "Bohemian Rhapsody\nHotel California\nImagine",
+      "expected": [
+        { "track": "Bohemian Rhapsody", "artist": "" },
+        { "track": "Hotel California", "artist": "" },
+        { "track": "Imagine", "artist": "" }
+      ]
+    },
+    {
+      "category": "spotify_web_urls",
+      "input": "https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT?si=abc\nhttps://open.spotify.com/intl-tr/track/7qiZfU4dY1lWllzX7mPBI3",
+      "expected": [
+        { "track": "https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT?si=abc", "artist": "", "spotifyId": "4cOdK2wGLETKBW3PvgPWqT" },
+        { "track": "https://open.spotify.com/intl-tr/track/7qiZfU4dY1lWllzX7mPBI3", "artist": "", "spotifyId": "7qiZfU4dY1lWllzX7mPBI3" }
+      ]
+    },
+    {
+      "category": "spotify_uris",
+      "input": "spotify:track:4cOdK2wGLETKBW3PvgPWqT → spotify:track:7qiZfU4dY1lWllzX7mPBI3",
+      "expected": [
+        { "track": "spotify:track:4cOdK2wGLETKBW3PvgPWqT", "artist": "", "spotifyId": "4cOdK2wGLETKBW3PvgPWqT" },
+        { "track": "spotify:track:7qiZfU4dY1lWllzX7mPBI3", "artist": "", "spotifyId": "7qiZfU4dY1lWllzX7mPBI3" }
+      ]
+    }
+  ]
+}

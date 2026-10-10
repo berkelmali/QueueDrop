@@ -1,0 +1,20 @@
+{
+  "appId": "com.queuedrop.app",
+  "appName": "QueueDrop",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "backgroundColor": "#07090C",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": true
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#07090C"
+    }
+  }
+}

@@ -1,0 +1,222 @@
+/* ============================================================
+   QueueDrop — Reset, global layout, zemin
+   ============================================================ */
+
+/* ---------- Geriye dönük takma adlar (eski isimler kırılmasın) ---------- */
+:root {
+  --color-bg-primary: var(--color-bg);
+  --color-bg-secondary: var(--color-surface);
+  --color-bg-elevated: var(--color-surface-2);
+  --color-bg-card: var(--color-surface-2);
+  --color-bg-input: var(--color-surface-3);
+  --color-bg-hover: var(--color-surface-3);
+  --color-green-primary: var(--color-primary);
+  --color-green-hover: var(--color-primary-strong);
+  --color-text-primary: var(--color-text);
+  --color-text-secondary: var(--color-text-muted);
+  --color-text-tertiary: var(--color-text-faint);
+  --color-text-muted: var(--color-text-faint);
+  --color-error: var(--color-danger);
+  --radius-full: var(--radius-pill);
+  --font-size-xs: var(--text-xs);
+  --font-size-sm: var(--text-sm);
+  --font-size-base: var(--text-sm);
+}
+
+/* `hidden` özniteliği, display tanımlayan bir sınıfla birlikte kullanıldığında
+   yazar kuralı UA kuralını ezer ve öğe gizlenmez. Bu yüzden !important şart.
+   app.js inline `style.display` ile gösterdiğinde enhance.js gözlemcisi
+   `hidden`i aynı mikro-görevde kaldırır, yani boyamadan önce senkron olur. */
+[hidden] {
+  display: none !important;
+}
+
+/* ---------- Reset ---------- */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  line-height: var(--leading-normal);
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  border: none;
+  outline: none;
+  background: none;
+  -webkit-appearance: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+h1, h2, h3, h4 {
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  font-weight: 700;
+}
+
+code, kbd, samp {
+  font-family: var(--font-mono);
+}
+
+::selection {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+/* ---------- Kaydırma çubuğu ---------- */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-pill);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* ---------- Ekran yönetimi ---------- */
+#app {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+}
+
+.screen {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  min-height: 100dvh;
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
+.screen.active {
+  display: flex;
+}
+
+/* ---------- Aurora zemin ---------- */
+.bg-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: var(--color-bg);
+  background-image:
+    radial-gradient(1000px 500px at 50% -100px, rgba(30, 215, 96, 0.05) 0%, transparent 70%),
+    radial-gradient(800px 500px at 50% 120%, rgba(18, 22, 28, 0.8) 0%, transparent 80%);
+}
+
+.bg-aurora::after {
+  display: none;
+}
+
+/* Eski isim — kırılmasın */
+.bg-glow {
+  display: none;
+}
+
+/* ---------- Yardımcılar ---------- */
+.measure {
+  max-width: var(--measure);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: var(--z-toast);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  transform: translateY(-200%);
+  transition: transform var(--dur-1) var(--ease);
+  text-decoration: none;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.text-muted { color: var(--color-text-muted); }
+.text-faint { color: var(--color-text-faint); }
+.text-primary-accent { color: var(--color-primary); }
+.text-danger { color: var(--color-danger); }
+
+.stack > * + * { margin-top: var(--space-3); }
+.stack-lg > * + * { margin-top: var(--space-5); }

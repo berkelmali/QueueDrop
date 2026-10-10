@@ -1,0 +1,16 @@
+{
+  "path": "index.html",
+  "platform": "mobile-web",
+  "rules": 350,
+  "variables": 97,
+  "partial": false,
+  "findings": [
+    {
+      "check": "tap-target",
+      "line": 800,
+      "severity": "medium",
+      "detail": "`.btn .btn-spinner` width: 17px (minimum 44px)",
+      "suggestion": "Grow the target, or add padding so the hit area reaches the minimum even if the visual stays small."
+    }
+  ]
+}

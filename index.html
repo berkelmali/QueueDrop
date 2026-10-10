@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#07090C" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#F6F7F6" media="(prefers-color-scheme: light)">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="description" content="QueueDrop — Spotify kuyruğuna toplu şarkı ekle. Yapıştır. Bul. Çal.">
+
+  <title>QueueDrop — Spotify Kuyruk Oluşturucu</title>
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/jpeg" href="assets/logo.jpg">
+  <link rel="apple-touch-icon" href="assets/logo.jpg">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/index.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/components.css">
+
+  <!-- Tema, ilk boyamadan önce uygulanır (flash olmasın) -->
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('queuedrop_theme');
+        if (saved === 'light' || saved === 'dark') {
+          document.documentElement.setAttribute('data-theme', saved);
+        }
+        // Kayıt yoksa belge üzerindeki data-theme="dark" geçerli kalır.
+      } catch (e) {
+        /* localStorage kapalı — sistem tercihi geçerli kalır */
+      }
+    })();
+  </script>
+</head>
+<body>
+
+  <a class="skip-link" href="#builder-tab">İçeriğe geç</a>
+
+  <div id="app">
+    <div class="bg-aurora" aria-hidden="true"></div>
+    <div class="bg-glow" aria-hidden="true"></div>
+
+    <!-- Ekran okuyucu duyuruları -->
+    <div id="live-region" class="visually-hidden" role="status" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- ============================================ -->
+    <!-- EKRAN 1 · Giriş                              -->
+    <!-- ============================================ -->
+    <section id="login-screen" class="screen login-screen active" aria-label="Giriş">
+      <div class="login-content anim-scale-in">
+
+        <div class="login-logo anim-float">
+          <img src="assets/logo.jpg" alt="QueueDrop logosu">
+        </div>
+
+        <h1 class="login-title">QueueDrop</h1>
+        <p class="login-subtitle">Yapıştır. Bul. Çal.</p>
+        <p class="login-description">
+          Şarkı listenizi yapıştırın, Spotify kuyruğunuza tek seferde ekleyin.
+          Tek tek aramaya son.
+        </p>
+
+        <!-- Adım göstergesi -->
+        <div class="login-steps" id="login-steps" aria-label="Kurulum adımları">
+          <div class="login-step active" data-step="1">
+            <div class="login-step-num" aria-hidden="true">1</div>
+            <div class="login-step-label">Client ID</div>
+          </div>
+          <div class="login-step-line" aria-hidden="true"></div>
+          <div class="login-step" data-step="2">
+            <div class="login-step-num" aria-hidden="true">2</div>
+            <div class="login-step-label">Spotify girişi</div>
+          </div>
+        </div>
+
+        <!-- Adres uyarısı — adım panellerinin DIŞINDA.
+             Daha önce bu blok adım 1'in içindeydi; Client ID kayıtlıyken
+             app.js o paneli gizliyor ve uyarı tam gerektiği anda
+             görünmez oluyordu. -->
+        <div class="banner is-error" id="redirect-uri-warning" hidden>
+          <span class="banner-icon" aria-hidden="true">⚠</span>
+          <div class="banner-body">
+            <strong class="banner-title">Bu adres Spotify girişi için kullanılamaz</strong>
+            <span id="redirect-uri-warning-text"></span>
+          </div>
+        </div>
+
+        <!-- ADIM 1 · Client ID -->
+        <div class="login-step-panel" id="step-client-id">
+          <div class="config-section">
+            <h2 class="config-section-title">Spotify Developer Client ID</h2>
+
+            <div class="field">
+              <label class="visually-hidden" for="client-id-input">Spotify Client ID</label>
+              <input
+                type="text"
+                id="client-id-input"
+                class="input"
+                placeholder="Client ID'nizi yapıştırın"
+                spellcheck="false"
+                autocomplete="off"
+                autocapitalize="off"
+                aria-describedby="client-id-help"
+              >
+              <p class="field-error" id="client-id-error" hidden>
+                <span aria-hidden="true">⚠</span>
+                <span>Client ID 32 karakterlik bir metindir. Panonuzdakini kontrol edin.</span>
+              </p>
+            </div>
+
+            <p class="input-helper" id="client-id-help">
+              <span aria-hidden="true">📋</span>
+              <span>
+                <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">developer.spotify.com</a>
+                adresinde uygulama oluşturun, Client ID'yi kopyalayın.
+              </span>
+            </p>
+
+            <div class="field">
+              <span class="field-label" id="redirect-uri-label">Dashboard'a girilecek Redirect URI</span>
+              <div class="code-row">
+                <code class="code-inline" id="redirect-uri-code">—</code>
+                <button type="button" id="copy-redirect-uri-btn" class="btn btn-outline btn-sm" aria-describedby="redirect-uri-label">
+                  Kopyala
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <button id="save-client-id" class="btn btn-primary btn-block btn-lg">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>
+            Kaydet ve devam et
+          </button>
+        </div>
+
+        <!-- ADIM 2 · Spotify girişi -->
+        <div class="login-step-panel" id="step-spotify-login" hidden>
+          <div class="config-section">
+            <h2 class="config-section-title">Spotify hesabı bağlantısı</h2>
+            <p class="input-helper">
+              <span aria-hidden="true">✓</span>
+              <span>Client ID kaydedildi. Kuyruğa şarkı ekleyebilmek için Spotify'ın izin vermesi gerekiyor.</span>
+            </p>
+          </div>
+
+          <button id="spotify-login-btn" class="btn btn-spotify btn-block btn-lg">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+            </svg>
+            Spotify hesabıyla giriş yap
+          </button>
+
+          <button id="back-to-step1" class="btn btn-ghost btn-sm btn-block">
+            ← Client ID'yi değiştir
+          </button>
+
+          <div class="note-box">
+            <strong>Neden Spotify girişi gerekiyor?</strong>
+            Kuyruğunuza şarkı eklemek Spotify'ın OAuth iznini gerektiriyor.
+            Yönlendirileceğiniz sayfa Spotify'ın kendi giriş sayfasıdır;
+            e-posta ve şifreniz bu uygulamadan geçmez.
+          </div>
+        </div>
+
+        <button id="demo-mode-btn" class="btn btn-outline btn-block btn-sm">
+          Demo modu — giriş yapmadan incele
+        </button>
+
+        <p class="login-note">
+          <span aria-hidden="true">🔒</span>
+          <span>Spotify Premium gerekir · Verileriniz cihazınızda kalır</span>
+        </p>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- EKRAN 2 · Kuyruk oluşturucu                  -->
+    <!-- ============================================ -->
+    <section id="builder-screen" class="screen builder-screen" aria-label="Kuyruk oluşturucu">
+
+      <header class="topbar">
+        <div class="topbar-logo">
+          <img src="assets/logo.jpg" alt="">
+          <span>QueueDrop</span>
+        </div>
+        <div class="topbar-right">
+          <div class="topbar-device" id="device-indicator" hidden>
+            <span class="dot" aria-hidden="true"></span>
+            <span>—</span>
+          </div>
+          <button class="btn-icon theme-toggle" id="theme-toggle" type="button" aria-label="Temayı değiştir" aria-pressed="false">
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+          </button>
+          <button class="topbar-avatar btn-icon" id="logout-btn" type="button" aria-label="Çıkış yap">
+            <img src="assets/logo.jpg" alt="">
+          </button>
+        </div>
+      </header>
+
+      <div class="tab-bar-nav">
+        <div class="tab-bar" role="tablist" aria-label="Görünüm">
+          <button class="tab-btn active" data-tab="builder-tab" id="tab-builder" role="tab" type="button" aria-selected="true" aria-controls="builder-tab">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            <span>Toplu Ekle</span>
+          </button>
+          <button class="tab-btn" data-tab="live-queue-tab" id="tab-live-queue" role="tab" type="button" aria-selected="false" aria-controls="live-queue-tab">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            <span>Çalan &amp; Sıradakiler</span>
+          </button>
+        </div>
+      </div>
+
+      <main id="builder-tab" class="tab-panel active" role="tabpanel" aria-labelledby="tab-builder">
+        <div class="builder-content">
+
+          <div class="builder-header anim-slide-up">
+            <h2>Kuyruk oluştur</h2>
+            <p>Şarkıları yapıştırın, Spotify kuyruğunuza sırayla eklensin.</p>
+          </div>
+
+          <!-- Offline durumu -->
+          <div class="banner is-error" id="offline-banner" hidden>
+            <span class="banner-icon" aria-hidden="true">⚡</span>
+            <div class="banner-body">
+              <strong class="banner-title">İnternet bağlantısı yok</strong>
+              Arama ve kuyruğa ekleme çevrimiçi bağlantı gerektiriyor. Yazdıklarınız burada duruyor; bağlantı gelince kaldığınız yerden devam edebilirsiniz.
+            </div>
+          </div>
+
+          <!-- Premium gerekli durumu (kalıcı) -->
+          <div class="banner is-warning" id="premium-warning" hidden>
+            <span class="banner-icon" aria-hidden="true">★</span>
+            <div class="banner-body">
+              <strong class="banner-title">Spotify Premium gerekli</strong>
+              Kuyruğa şarkı ekleme Spotify'ın Premium hesaplara açtığı bir özellik.
+              Ücretsiz hesapta arama ve önizleme çalışır, ekleme çalışmaz.
+            </div>
+          </div>
+
+          <!-- Cihaz yok durumu -->
+          <div class="banner is-warning" id="device-warning" hidden>
+            <span class="banner-icon" aria-hidden="true">📱</span>
+            <div class="banner-body">
+              <strong class="banner-title">Aktif Spotify cihazı yok</strong>
+              Kuyruğa ekleyebilmek için Spotify uygulamasını telefonunuzda ya da bilgisayarınızda açıp bir şarkı başlatın.
+              <div class="banner-actions">
+                <button class="btn btn-outline btn-sm" id="recheck-device-btn" type="button">Yeniden kontrol et</button>
+                <button class="btn btn-outline btn-sm" id="show-devices-btn" type="button">Cihazlarımı göster</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="builder-input-section anim-slide-up">
+            <label class="visually-hidden" for="song-input">Şarkı listesi</label>
+            <textarea
+              id="song-input"
+              class="textarea"
+              placeholder="Canın Sağolsun - Gülşen → Dan Dan - Gülşen → Yurtta Aşk Cihanda Aşk - Gülşen"
+              rows="4"
+              spellcheck="false"
+              aria-describedby="song-input-help"
+            ></textarea>
+
+            <div class="quick-insert">
+              <span class="quick-insert-label" id="song-input-help">Hızlı ekle:</span>
+              <button class="quick-insert-btn" type="button" data-insert=" → " aria-label="Ok ayracı ekle">→</button>
+              <button class="quick-insert-btn" type="button" data-insert=" - " aria-label="Tire ayracı ekle">—</button>
+              <button class="quick-insert-btn" type="button" data-insert="&#10;" aria-label="Yeni satır ekle">↵ Yeni satır</button>
+              <button class="quick-insert-btn quick-insert-btn-ml" id="btn-ml-complete-builder" type="button" title="Yazdığın şarkıların tarzını analiz edip listeyi ML ile otomatik tamamlar">
+                <span>🪄 ML ile Tamamla</span>
+              </button>
+            </div>
+          </div>
+
+          <button id="search-btn" class="btn btn-primary btn-block btn-lg anim-slide-up">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            Şarkıları bul
+          </button>
+
+          <!-- Hızlı Keşif & Vibe Seçici -->
+          <div class="vibe-chips-section anim-slide-up">
+            <div class="vibe-chips-label">
+              <span>Hızlı Keşif &amp; Ruh Hali</span>
+              <span class="vibe-chips-hint">Tek tıkla listeye doldur</span>
+            </div>
+            <div class="vibe-chips" role="group" aria-label="Ruh haline göre müzik seçimi">
+              <button type="button" class="vibe-chip" data-vibe="top">
+                <span class="vibe-emoji" aria-hidden="true">🔥</span>
+                <span>En Çok Dinlediklerim</span>
+              </button>
+              <button type="button" class="vibe-chip" data-vibe="party">
+                <span class="vibe-emoji" aria-hidden="true">⚡</span>
+                <span>Parti &amp; Dans</span>
+              </button>
+              <button type="button" class="vibe-chip" data-vibe="chill">
+                <span class="vibe-emoji" aria-hidden="true">☕</span>
+                <span>Akustik Chill</span>
+              </button>
+              <button type="button" class="vibe-chip" data-vibe="night">
+                <span class="vibe-emoji" aria-hidden="true">🌙</span>
+                <span>Gece Sürüşü</span>
+              </button>
+              <button type="button" class="vibe-chip" data-vibe="lofi">
+                <span class="vibe-emoji" aria-hidden="true">🎧</span>
+                <span>Lo-Fi Odak</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="builder-example anim-slide-up">
+            <div class="builder-example-title">
+              <span>Örnek format</span>
+              <button id="fill-example-btn" class="btn btn-ghost btn-sm" type="button">Örneği doldur</button>
+            </div>
+            <button class="builder-example-text" id="example-text-sample" type="button" aria-label="Bu örneği giriş kutusuna yapıştır">
+              Canın Sağolsun <span class="arrow">-</span> Gülşen <span class="arrow">→</span> Dan Dan <span class="arrow">-</span> Gülşen <span class="arrow">→</span> Yurtta Aşk Cihanda Aşk <span class="arrow">-</span> Gülşen <span class="arrow">→</span> İtaat Yok <span class="arrow">-</span> Gülşen
+            </button>
+            <p class="builder-example-text">
+              Her satıra bir şarkı da yazabilirsiniz. Ayraçlar: → , -&gt; , ; veya yeni satır.
+            </p>
+          </div>
+
+        </div>
+      </main>
+
+      <!-- Sekme 2 · Canlı kuyruk -->
+      <div class="tab-panel" id="live-queue-tab" role="tabpanel" aria-labelledby="tab-live-queue">
+        <div class="live-queue-content">
+
+          <div class="now-playing-section" id="now-playing-section">
+
+            <div class="state-block" id="now-playing-empty">
+              <span class="state-block-icon" aria-hidden="true">🎧</span>
+              <h2 class="state-block-title">Şu an bir şey çalmıyor</h2>
+              <p class="state-block-text">Spotify'ı açıp herhangi bir şarkı başlatın; buradan kontrol edebilirsiniz.</p>
+              <div class="state-block-actions">
+                <button class="btn btn-outline btn-sm" id="np-retry-btn" type="button">Yeniden dene</button>
+              </div>
+            </div>
+
+            <div class="state-block" id="now-playing-error" hidden>
+              <span class="state-block-icon" aria-hidden="true">⚠</span>
+              <h2 class="state-block-title">Çalma durumu alınamadı</h2>
+              <p class="state-block-text" id="now-playing-error-text">Spotify'a ulaşılamadı. Bağlantınızı kontrol edip yeniden deneyin.</p>
+              <div class="state-block-actions">
+                <button class="btn btn-outline btn-sm" id="np-error-retry-btn" type="button">Yeniden dene</button>
+              </div>
+            </div>
+
+            <div class="state-block" id="now-playing-loading" hidden>
+              <span class="state-block-icon" aria-hidden="true"><span class="loading-dots"><span></span><span></span><span></span></span></span>
+              <h2 class="state-block-title">Yükleniyor</h2>
+              <p class="state-block-text">Spotify'dan çalma durumu alınıyor.</p>
+            </div>
+
+            <div class="now-playing-card" id="now-playing-card" hidden>
+              <div class="now-playing-glow" id="now-playing-glow" aria-hidden="true"></div>
+              <div class="now-playing-art">
+                <img src="assets/logo.jpg" alt="Albüm kapağı" id="np-album-art">
+                <div class="equalizer" id="np-equalizer" aria-hidden="true">
+                  <span></span><span></span><span></span><span></span><span></span>
+                </div>
+              </div>
+              <div class="now-playing-info">
+                <div class="now-playing-header-row">
+                  <p class="now-playing-label">ŞU AN ÇALIYOR</p>
+                  <button type="button" class="now-playing-bpm-badge" id="np-bpm-badge" title="Şarkının Hesaplanmış Gerçek BPM'i (Ritim ekranı için tıkla)">
+                    <span class="bpm-pulse-dot" id="np-bpm-dot" aria-hidden="true"></span>
+                    <span id="np-bpm-text">⚡ — BPM</span>
+                  </button>
+                </div>
+                <h2 class="now-playing-title" id="np-title">—</h2>
+                <p class="now-playing-artist" id="np-artist">—</p>
+                <p class="now-playing-album" id="np-album">—</p>
+              </div>
+
+              <div class="now-playing-progress">
+                <span class="progress-time" id="np-time-current">0:00</span>
+                <div class="progress-bar-container" id="np-progress-container" role="slider" tabindex="0"
+                     aria-label="Şarkı konumu" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                  <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="np-progress-fill"></div>
+                    <div class="progress-bar-thumb" id="np-progress-thumb"></div>
+                  </div>
+                </div>
+                <span class="progress-time" id="np-time-total">0:00</span>
+              </div>
+
+              <div class="playback-controls">
+                <button class="control-btn" id="ctrl-prev" type="button" aria-label="Önceki şarkı">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+                </button>
+                <button class="control-btn control-btn-main" id="ctrl-play-pause" type="button" aria-label="Çal veya duraklat">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" id="icon-play" aria-hidden="true">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                </button>
+                <button class="control-btn" id="ctrl-next" type="button" aria-label="Sonraki şarkı">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                </button>
+              </div>
+
+              <!-- İkincil Oynatıcı Kontrolleri (Shuffle, Repeat, Uyku Zamanlayıcı) -->
+              <div class="playback-controls-secondary">
+                <button class="control-btn-secondary" id="ctrl-shuffle" type="button" aria-label="Karışık çal" aria-pressed="false" title="Karışık Çal">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
+                    <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/>
+                  </svg>
+                </button>
+                <button class="control-btn-secondary" id="ctrl-repeat" type="button" aria-label="Tekrarla" aria-pressed="false" title="Tekrarla">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                    <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                  </svg>
+                </button>
+                <button class="control-btn-secondary" id="ctrl-sleep-timer" type="button" aria-label="Uyku zamanlayıcısı" title="Uyku Zamanlayıcısı Ayarla">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                  <span class="sleep-timer-badge" id="sleep-timer-badge" style="display:none;"></span>
+                </button>
+                <button class="control-btn-secondary" id="ctrl-lyrics" type="button" aria-label="Senkronize şarkı sözleri" title="Şarkı Sözleri (Karaoke)">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/>
+                  </svg>
+                </button>
+                <button class="control-btn-secondary" id="ctrl-rhythm" type="button" aria-label="Ritim Ekranı ve Lav Lambası Ambiyansı" title="Ritim Ekranı (Lav Lambası)">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 2v20M17 5v14M7 9v6M22 10v4M2 11v2"/>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Ses Düzeyi Kontrolü -->
+              <div class="now-playing-volume" id="np-volume-row">
+                <span class="volume-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                  </svg>
+                </span>
+                <input type="range" class="volume-slider" id="np-volume-slider" min="0" max="100" value="70" aria-label="Ses düzeyi">
+                <span class="volume-value" id="np-volume-label">70%</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="queue-list-section">
+            <div class="queue-list-header">
+              <h2 class="queue-list-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                <span>Sıradakiler</span>
+                <span class="queue-badge" id="queue-count-badge" aria-label="Kuyruktaki şarkı sayısı">0</span>
+              </h2>
+              <div class="queue-list-meta">
+                <span id="queue-total-duration">—</span>
+                <span class="queue-eta-badge" id="queue-eta" title="Tahmini bitiş saati">—</span>
+                <button class="btn-icon queue-refresh-btn" id="queue-refresh-btn" type="button" aria-label="Kuyruğu yenile">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Kuyruk Stüdyosu Araç Çubuğu -->
+            <div class="queue-toolbar" id="queue-toolbar">
+              <button class="queue-tool-btn" id="btn-save-playlist" type="button" title="Tüm kuyruğu Spotify çalma listesi olarak kaydet">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+                </svg>
+                <span>Playlist Yap</span>
+              </button>
+              <button class="queue-tool-btn" id="btn-smart-flow" type="button" title="Kuyruğa benzer şarkılar türet ve ekle">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/>
+                </svg>
+                <span>Akıllı Tamamla</span>
+              </button>
+              <button class="queue-tool-btn" id="btn-smart-shuffle" type="button" title="Sanatçıları peş peşe getirmeyen akıllı karıştırma">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
+                  <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
+                </svg>
+                <span>Akıllı Karıştır</span>
+              </button>
+              <button class="queue-tool-btn" id="btn-deduplicate" type="button" title="Tekrarlayan parçaları kuyruktan kaldır">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+                </svg>
+                <span>Çiftleri Sil</span>
+              </button>
+            </div>
+
+            <div class="queue-items" id="queue-items">
+              <div class="state-block" id="queue-empty">
+                <span class="state-block-icon" aria-hidden="true">📭</span>
+                <h3 class="state-block-title">Kuyruk boş</h3>
+                <p class="state-block-text">"Toplu ekle" sekmesinden bir liste yapıştırıp kuyruğu doldurun.</p>
+                <div class="state-block-actions">
+                  <button class="btn btn-outline btn-sm" id="queue-empty-cta" type="button">Toplu ekle'ye git</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Mini oynatıcı -->
+      <div class="mini-player" id="mini-player" hidden>
+        <div class="mini-player-art">
+          <img src="assets/logo.jpg" alt="" id="mini-player-art-img">
+        </div>
+        <div class="mini-player-info">
+          <div class="mini-player-title-row">
+            <div class="mini-player-title" id="mini-player-title">—</div>
+            <span class="mini-player-bpm-badge" id="mini-player-bpm-badge">⚡ — BPM</span>
+          </div>
+          <div class="mini-player-artist" id="mini-player-artist">—</div>
+        </div>
+        <div class="mini-player-controls">
+          <button class="mini-control-btn" id="mini-play-pause" type="button" aria-label="Çal veya duraklat">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" id="mini-icon-play" aria-hidden="true">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </button>
+          <button class="mini-control-btn" id="mini-next" type="button" aria-label="Sonraki şarkı">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+          </button>
+        </div>
+        <div class="mini-player-progress" id="mini-player-progress" aria-hidden="true">
+          <div class="mini-player-progress-fill" id="mini-player-progress-fill"></div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================ -->
+    <!-- EKRAN 3 · Önizleme                           -->
+    <!-- ============================================ -->
+    <section id="preview-screen" class="screen preview-screen" aria-label="Önizleme">
+      <header class="topbar">
+        <button id="back-to-builder" class="btn btn-ghost btn-sm" type="button">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m15 18-6-6 6-6"/>
+          </svg>
+          Geri
+        </button>
+        <span id="preview-count" class="preview-count">0 şarkı</span>
+      </header>
+
+      <div class="preview-content">
+        <div class="preview-header">
+          <h2>Önizleme</h2>
+          <p class="text-muted">Eklemeden önce eşleşmeleri kontrol edin. Şüpheli olanları "Değiştir" ile düzeltebilirsiniz.</p>
+        </div>
+
+        <div class="preview-summary">
+          <div class="preview-summary-item">
+            <div class="preview-summary-value" id="summary-tracks">0</div>
+            <div class="preview-summary-label">Toplam</div>
+          </div>
+          <div class="preview-summary-item">
+            <div class="preview-summary-value" id="summary-found">0/0</div>
+            <div class="preview-summary-label">Bulundu</div>
+          </div>
+          <div class="preview-summary-item">
+            <div class="preview-summary-value" id="summary-duration">0 dk</div>
+            <div class="preview-summary-label">Süre</div>
+          </div>
+          <div class="match-meter" id="match-meter" role="img" aria-label="Eşleşme oranı">
+            <div class="match-meter-fill" id="match-meter-fill"></div>
+          </div>
+        </div>
+
+        <div id="track-list" class="track-list"></div>
+      </div>
+
+      <div class="bottom-bar">
+        <div class="queue-progress" id="queue-progress" hidden>
+          <div class="queue-progress-bar" id="queue-progress-bar"></div>
+        </div>
+        <button id="add-to-queue-btn" class="btn btn-primary btn-block btn-lg" type="button" disabled>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          Kuyruğa ekle
+        </button>
+        <p class="bottom-bar-info">Şarkılar Spotify kuyruğunuza sırayla eklenir</p>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- EKRAN 4 · Başarı                             -->
+    <!-- ============================================ -->
+    <section id="success-screen" class="screen success-screen" aria-label="Tamamlandı">
+      <div class="success-content anim-scale-bounce">
+        <div class="success-icon" aria-hidden="true">🎉</div>
+        <h2 class="success-title">Tamamlandı</h2>
+        <p class="success-subtitle">Şarkılar Spotify kuyruğunuza eklendi</p>
+
+        <div class="success-stats">
+          <div class="success-stat">
+            <div class="success-stat-value" id="success-count">0</div>
+            <div class="success-stat-label">Şarkı eklendi</div>
+          </div>
+          <div class="success-stat">
+            <div class="success-stat-value" id="success-duration">0 dk</div>
+            <div class="success-stat-label">Toplam süre</div>
+          </div>
+        </div>
+
+        <button id="new-queue-btn" class="btn btn-primary btn-block btn-lg" type="button">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          Yeni kuyruk oluştur
+        </button>
+
+        <button class="btn btn-ghost btn-sm" id="open-spotify-btn" type="button">Spotify'ı aç →</button>
+      </div>
+    </section>
+
+    <!-- ============================================ -->
+    <!-- PANEL · Senkronize Şarkı Sözleri (Karaoke)   -->
+    <!-- ============================================ -->
+    <div id="lyrics-panel" class="lyrics-panel" role="dialog" aria-modal="true" aria-label="Şarkı Sözleri" style="display:none;">
+      <div class="lyrics-backdrop" role="presentation"></div>
+      
+      <header class="lyrics-header">
+        <div class="lyrics-header-left">
+          <img id="lyrics-art-img" class="lyrics-header-art" src="assets/logo.jpg" alt="">
+          <div class="lyrics-track-info">
+            <span class="lyrics-badge" id="lyrics-sync-badge"><span class="lyrics-live-dot" aria-hidden="true"></span>Canlı Senkronize</span>
+            <h2 class="lyrics-title" id="lyrics-title">—</h2>
+            <p class="lyrics-artist" id="lyrics-artist">—</p>
+          </div>
+        </div>
+        <div class="lyrics-actions">
+          <button type="button" class="lyrics-close-btn" id="lyrics-close-btn" aria-label="Sözleri kapat" title="Kapat">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Yüzen Senkrone Dön butonu (kullanıcı kaydırdığında görünür) -->
+      <button type="button" class="lyrics-floating-sync-btn" id="lyrics-sync-btn" title="Çalan satıra dön" aria-label="Çalan satıra odaklan" style="display:none;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <span>Senkrone Dön</span>
+      </button>
+
+      <div class="lyrics-body" id="lyrics-body" role="region" aria-live="polite">
+        <!-- Boş / Yükleniyor durumu -->
+        <div class="lyrics-loading" id="lyrics-loading">
+          <div class="loading-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+          <p>Şarkı sözleri getiriliyor...</p>
+        </div>
+
+        <!-- Bulunamadı durumu -->
+        <div class="lyrics-empty" id="lyrics-empty" style="display:none;">
+          <span class="state-block-icon" aria-hidden="true">📝</span>
+          <h3 class="state-block-title">Şarkı sözü bulunamadı</h3>
+          <p class="state-block-text">Bu parça için senkronize söz kaydı bulunamadı veya parça enstrümantal olabilir.</p>
+        </div>
+
+        <!-- Senkronize Satırlar -->
+        <div class="lyrics-lines" id="lyrics-lines" style="display:none;"></div>
+
+        <!-- Düz Metin (Senkronize olmayan) Sözler -->
+        <div class="lyrics-plain" id="lyrics-plain" style="display:none;"></div>
+      </div>
+      
+      <div class="lyrics-footer">
+        <span class="lyrics-hint">💡 Bir satıra dokunarak şarkıyı doğrudan oraya atlatabilirsiniz</span>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- EKRAN · Ritim Ekranı & Lav Lambası Ambiyansı -->
+    <!-- ============================================ -->
+    <div id="rhythm-screen" class="rhythm-screen" role="dialog" aria-modal="true" aria-label="Ritim Ekranı ve Lav Lambası" style="display:none;">
+      <!-- 60 FPS Lav Lambası Tuvali -->
+      <canvas id="rhythm-canvas" class="rhythm-canvas"></canvas>
+
+      <!-- Üst Kontroller: Mod Seçici & Kapat -->
+      <header class="rhythm-header">
+        <div class="rhythm-mood-chips" role="radiogroup" aria-label="Ambiyans Modu">
+          <button type="button" class="rhythm-mood-chip active" data-mood="lava" title="Klasik yavaş eriyen lav lambası">
+            <span class="mood-icon" aria-hidden="true">🌋</span>
+            <span>Lav Lambası</span>
+          </button>
+          <button type="button" class="rhythm-mood-chip" data-mood="pulse" title="Vuruşlara duyarlı enerjik parti nabzı">
+            <span class="mood-icon" aria-hidden="true">⚡</span>
+            <span>Parti Nabzı</span>
+          </button>
+          <button type="button" class="rhythm-mood-chip" data-mood="aurora" title="Kozmik ve sakin dalgalar">
+            <span class="mood-icon" aria-hidden="true">🌌</span>
+            <span>Aurora</span>
+          </button>
+        </div>
+
+        <div class="rhythm-header-actions">
+          <button type="button" class="rhythm-action-btn rhythm-mic-btn" id="rhythm-mic-btn" aria-label="Canlı mikrofon ritim algılama" title="Canlı Ritim / Mikrofon Algılama">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="22"/>
+            </svg>
+          </button>
+          <button type="button" class="rhythm-action-btn" id="rhythm-fullscreen-btn" aria-label="Tam ekranı aç/kapat" title="Tam Ekran (TV/Projeksiyon)">
+            <svg class="icon-expand" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+            <svg class="icon-compress" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none;">
+              <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+            </svg>
+          </button>
+          <button type="button" class="rhythm-action-btn rhythm-close-btn" id="rhythm-close-btn" aria-label="Ritim ekranını kapat" title="Kapat (ESC)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Sol Alt: Minimalist Cam Çalan Parça HUD Kartı -->
+      <div class="rhythm-hud-card" id="rhythm-hud-card">
+        <img id="rhythm-hud-art" class="rhythm-hud-art" src="assets/logo.jpg" alt="" loading="lazy">
+        <div class="rhythm-hud-info">
+          <div class="rhythm-hud-badge">
+            <span class="rhythm-beat-dot" id="rhythm-beat-dot" aria-hidden="true"></span>
+            <span id="rhythm-bpm-badge">⚡ 120 BPM</span>
+            <span id="rhythm-status-badge">• Çalıyor</span>
+            <span id="rhythm-energy-badge" class="rhythm-energy-badge">✨ Orta Enerji</span>
+          </div>
+          <h3 class="rhythm-hud-title" id="rhythm-hud-title">—</h3>
+          <p class="rhythm-hud-artist" id="rhythm-hud-artist">—</p>
+        </div>
+
+        <div class="rhythm-hud-controls">
+          <button type="button" class="rhythm-ctrl-btn" id="rhythm-hud-prev" aria-label="Önceki şarkı" title="Önceki">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+          </button>
+          <button type="button" class="rhythm-ctrl-btn rhythm-ctrl-play" id="rhythm-hud-play" aria-label="Oynat/Duraklat" title="Oynat/Duraklat">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" id="rhythm-hud-icon-play"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" id="rhythm-hud-icon-pause" style="display:none;"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          </button>
+          <button type="button" class="rhythm-ctrl-btn" id="rhythm-hud-next" aria-label="Sonraki şarkı" title="Sonraki">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+          </button>
+        </div>
+
+        <div class="rhythm-hud-progress-track">
+          <div class="rhythm-hud-progress-fill" id="rhythm-hud-progress-fill" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- Alt Orta: İnteraktif İpucu -->
+      <div class="rhythm-footer-hint">
+        <span>✨ Ekrana dokunarak veya tıklayarak lav dalgası yayabilirsiniz</span>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="js/auth.js"></script>
+  <script src="js/parser.js"></script>
+  <script src="js/lyrics.js"></script>
+  <script src="js/rhythm.js"></script>
+  <script src="js/ml-recommender.js"></script>
+  <script src="js/spotify.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/enhance.js"></script>
+</body>
+</html>

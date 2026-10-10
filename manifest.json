@@ -1,0 +1,21 @@
+{
+  "name": "QueueDrop",
+  "short_name": "QueueDrop",
+  "description": "Spotify kuyruğuna toplu şarkı ekle. Yapıştır. Bul. Çal.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#07090C",
+  "background_color": "#07090C",
+  "categories": ["music", "entertainment", "utilities"],
+  "lang": "tr",
+  "icons": [
+    {
+      "src": "assets/logo.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

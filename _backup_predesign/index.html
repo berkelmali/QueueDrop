@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="QueueDrop — Spotify kuyruğuna toplu şarkı ekle. Yapıştır. Bul. Çal.">
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <title>QueueDrop — Spotify Queue Builder</title>
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/jpeg" href="assets/logo.jpg">
+  <link rel="apple-touch-icon" href="assets/logo.jpg">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="css/index.css">
+  <link rel="stylesheet" href="css/animations.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+  <div id="app">
+    <!-- Background glow effect -->
+    <div class="bg-glow"></div>
+
+    <!-- ================================ -->
+    <!-- SCREEN 1: Login                  -->
+    <!-- ================================ -->
+    <section id="login-screen" class="screen login-screen active">
+      <div class="login-content anim-scale-in">
+        <!-- Logo -->
+        <div class="login-logo anim-float">
+          <img src="assets/logo.jpg" alt="QueueDrop Logo">
+        </div>
+
+        <!-- Title & Subtitle -->
+        <h1 class="login-title">QueueDrop</h1>
+        <p class="login-subtitle">Yapıştır. Bul. Çal.</p>
+        <p class="login-description">
+          Şarkı listenizi yapıştırın, Spotify kuyruğunuza anında ekleyin.<br>
+          Artık tek tek aramaya son!
+        </p>
+
+        <!-- Step Indicator -->
+        <div class="login-steps" id="login-steps">
+          <div class="login-step active" data-step="1">
+            <div class="login-step-num">1</div>
+            <div class="login-step-label">Client ID</div>
+          </div>
+          <div class="login-step-line"></div>
+          <div class="login-step" data-step="2">
+            <div class="login-step-num">2</div>
+            <div class="login-step-label">Spotify Giriş</div>
+          </div>
+        </div>
+
+        <!-- STEP 1: Client ID -->
+        <div class="login-step-panel" id="step-client-id">
+          <div class="config-section">
+            <div class="config-section-title">🔑 Spotify Developer Client ID</div>
+            <div class="config-row">
+              <input 
+                type="text" 
+                id="client-id-input" 
+                class="input" 
+                placeholder="Client ID'nizi yapıştırın..."
+                spellcheck="false"
+                autocomplete="off"
+              >
+            </div>
+            <div class="input-helper">
+              <span>📋</span>
+              <span><a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener" style="color: var(--color-green-primary); text-decoration: underline;">developer.spotify.com</a> → Uygulama oluşturun → Client ID'yi kopyalayın</span>
+            </div>
+            <div class="input-helper" style="margin-top: 6px; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span>⚠️</span>
+                <span style="font-size: 11px; opacity: 0.85;">Spotify Dashboard Redirect URI:</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px; width: 100%; margin-top: 2px;">
+                <code id="redirect-uri-code" style="background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 4px; font-size: 11px; color: var(--color-green-primary); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace;">http://localhost:5500/</code>
+                <button type="button" id="copy-redirect-uri-btn" class="btn btn-ghost btn-sm" style="font-size: 10px; padding: 2px 8px; height: 26px; border: 1px solid rgba(255,255,255,0.15);" title="Kopyala">Kopyala</button>
+              </div>
+            </div>
+          </div>
+
+          <button id="save-client-id" class="btn btn-primary btn-block btn-lg" style="margin-top: 12px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>
+            Client ID'yi Kaydet & Devam Et
+          </button>
+        </div>
+
+        <!-- STEP 2: Spotify Login (hidden initially) -->
+        <div class="login-step-panel" id="step-spotify-login" style="display: none;">
+          <div class="config-section" style="text-align: center;">
+            <div style="font-size: 14px; color: var(--color-text-secondary); margin-bottom: 12px; line-height: 1.6;">
+              ✅ Client ID kaydedildi!<br>
+              <span style="font-size: 12px; opacity: 0.7;">
+                Şimdi Spotify hesabınızla giriş yapın.<br>
+                Bu adım gerekli çünkü kuyruğunuza şarkı eklemek için<br>
+                Spotify hesabınızın <strong>izin vermesi</strong> gerekiyor.
+              </span>
+            </div>
+          </div>
+
+          <button id="spotify-login-btn" class="btn btn-spotify btn-block btn-lg">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+            </svg>
+            Spotify Hesabıyla Giriş Yap
+          </button>
+
+          <div style="text-align: center; margin-top: 8px;">
+            <button id="back-to-step1" class="btn btn-ghost btn-sm" style="font-size: 11px; color: var(--color-text-tertiary);">
+              ← Client ID'yi Değiştir
+            </button>
+          </div>
+
+          <div style="margin-top: 14px; padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: var(--radius-lg); border: 1px solid rgba(255,255,255,0.06);">
+            <div style="font-size: 11px; color: var(--color-text-muted); line-height: 1.5;">
+              💡 <strong>Neden Spotify girişi gerekiyor?</strong><br>
+              Spotify, kuyruğunuza şarkı eklemek için OAuth izni istiyor. 
+              Yönlendirileceğiniz sayfa Spotify'ın resmi giriş sayfasıdır. 
+              E-posta ve şifrenizi doğrudan Spotify'a giriyorsunuz — biz hiçbir bilgiyi görmüyoruz.
+            </div>
+          </div>
+        </div>
+
+        <!-- Demo Mode Button -->
+        <button id="demo-mode-btn" class="btn btn-ghost btn-sm" style="margin-top: 14px; width: 100%; border: 1px dashed rgba(255,255,255,0.12); border-radius: var(--radius-full); font-size: var(--font-size-xs); color: var(--color-text-secondary); padding: 8px 16px;">
+          ✨ Demo Modu (Giriş Yapmadan İncele)
+        </button>
+
+        <!-- Note -->
+        <p class="login-note">
+          <span>🔒</span>
+          <span>Spotify Premium gereklidir • Verileriniz cihazınızda kalır</span>
+        </p>
+      </div>
+    </section>
+
+    <!-- ================================ -->
+    <!-- SCREEN 2: Queue Builder          -->
+    <!-- ================================ -->
+    <section id="builder-screen" class="screen builder-screen">
+      <!-- Top Bar -->
+      <header class="topbar">
+        <div class="topbar-logo">
+          <img src="assets/logo.jpg" alt="QueueDrop">
+          <span>QueueDrop</span>
+        </div>
+        <div class="topbar-right">
+          <div class="topbar-device" id="device-indicator" style="display:none;">
+            <span class="dot"></span>
+            <span>—</span>
+          </div>
+          <button class="topbar-avatar btn-icon" id="logout-btn" title="Çıkış Yap">
+            <img src="" alt="Profil" style="width:100%;height:100%;object-fit:cover;">
+          </button>
+        </div>
+      </header>
+
+      <!-- Tab Bar -->
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="builder-tab" id="tab-builder">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+          Toplu Ekle
+        </button>
+        <button class="tab-btn" data-tab="live-queue-tab" id="tab-live-queue">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          Çalan &amp; Sıradakiler
+        </button>
+      </div>
+
+      <!-- ========== TAB 1: Builder ========== -->
+      <div class="tab-panel active" id="builder-tab">
+        <div class="builder-content">
+          <!-- Header -->
+          <div class="builder-header anim-slide-up">
+            <h2>🎵 Kuyruk Oluştur</h2>
+            <p>Şarkıları girin, Spotify kuyruğunuza ekleyin</p>
+          </div>
+
+          <!-- No Device Warning -->
+          <div class="device-warning" id="device-warning" style="display:none;">
+            <div class="device-warning-icon">📱</div>
+            <div class="device-warning-text">
+              <strong>Aktif cihaz bulunamadı!</strong><br>
+              Kuyruğa eklemek için önce Spotify'ı telefonunuzda veya bilgisayarınızda açın.
+            </div>
+          </div>
+
+          <!-- Input Section -->
+          <div class="builder-input-section anim-slide-up" style="animation-delay: 100ms">
+            <textarea 
+              id="song-input" 
+              class="textarea" 
+              placeholder="Canın Sağolsun - Gülşen → Dan Dan - Gülşen → Yurtta Aşk Cihanda Aşk - Gülşen"
+              rows="4"
+              spellcheck="false"
+            ></textarea>
+
+            <!-- Quick Insert Buttons -->
+            <div class="quick-insert">
+              <span style="font-size: var(--font-size-xs); color: var(--color-text-tertiary);">Hızlı ekle:</span>
+              <button class="quick-insert-btn" data-insert=" → ">→</button>
+              <button class="quick-insert-btn" data-insert=" - ">—</button>
+              <button class="quick-insert-btn" data-insert="&#10;">↵ Yeni satır</button>
+            </div>
+          </div>
+
+          <!-- Search Button -->
+          <button id="search-btn" class="btn btn-primary btn-block btn-lg anim-slide-up" style="animation-delay: 200ms">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+            Şarkıları Bul
+          </button>
+
+          <!-- Example -->
+          <div class="builder-example anim-slide-up" style="animation-delay: 300ms">
+            <div class="builder-example-title" style="display: flex; justify-content: space-between; align-items: center;">
+              <span>💡 Örnek Format</span>
+              <button id="fill-example-btn" class="btn btn-ghost btn-sm" style="font-size: 11px; padding: 2px 8px; color: var(--color-green-primary); border: 1px solid rgba(30,215,96,0.3); border-radius: var(--radius-full);">
+                📋 Bu Örneği Doldur
+              </button>
+            </div>
+            <div class="builder-example-text" id="example-text-sample" style="cursor: pointer;" title="Tıklayarak kutuya yapıştırın">
+              Canın Sağolsun <span class="arrow">-</span> Gülşen <span class="arrow">→</span> Dan Dan <span class="arrow">-</span> Gülşen <span class="arrow">→</span> Yurtta Aşk Cihanda Aşk <span class="arrow">-</span> Gülşen <span class="arrow">→</span> İtaat Yok <span class="arrow">-</span> Gülşen
+            </div>
+            <div class="builder-example-text" style="margin-top: 8px; opacity: 0.6; font-size: var(--font-size-xs);">
+              Her satıra bir şarkı da yazabilirsiniz.<br>
+              Ayraçlar: → , -> , ; veya yeni satır
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== TAB 2: Live Queue ========== -->
+      <div class="tab-panel" id="live-queue-tab">
+        <div class="live-queue-content">
+
+          <!-- Now Playing Section -->
+          <div class="now-playing-section" id="now-playing-section">
+            <!-- Empty state -->
+            <div class="now-playing-empty" id="now-playing-empty">
+              <div class="now-playing-empty-icon">🎧</div>
+              <div class="now-playing-empty-text">
+                <strong>Şu an hiçbir şey çalmıyor</strong><br>
+                Spotify'ı açıp bir şarkı çalın, burada görünecek.
+              </div>
+            </div>
+
+            <!-- Now Playing Card (hidden by default) -->
+            <div class="now-playing-card" id="now-playing-card" style="display:none;">
+              <div class="now-playing-glow" id="now-playing-glow"></div>
+              <div class="now-playing-art">
+                <img src="" alt="Album Art" id="np-album-art">
+                <!-- Equalizer bars -->
+                <div class="equalizer" id="np-equalizer">
+                  <span></span><span></span><span></span><span></span><span></span>
+                </div>
+              </div>
+              <div class="now-playing-info">
+                <div class="now-playing-label">ŞU AN ÇALIYOR</div>
+                <div class="now-playing-title" id="np-title">—</div>
+                <div class="now-playing-artist" id="np-artist">—</div>
+                <div class="now-playing-album" id="np-album">—</div>
+              </div>
+              <!-- Progress Bar -->
+              <div class="now-playing-progress">
+                <div class="progress-time" id="np-time-current">0:00</div>
+                <div class="progress-bar-container" id="np-progress-container">
+                  <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="np-progress-fill" style="width: 0%"></div>
+                    <div class="progress-bar-thumb" id="np-progress-thumb" style="left: 0%"></div>
+                  </div>
+                </div>
+                <div class="progress-time" id="np-time-total">0:00</div>
+              </div>
+              <!-- Playback Controls -->
+              <div class="playback-controls">
+                <button class="control-btn" id="ctrl-prev" title="Önceki">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+                </button>
+                <button class="control-btn control-btn-main" id="ctrl-play-pause" title="Çal/Duraklat">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor" id="icon-play">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                </button>
+                <button class="control-btn" id="ctrl-next" title="Sonraki">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Queue List Section -->
+          <div class="queue-list-section">
+            <div class="queue-list-header">
+              <div class="queue-list-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                <span>Sıradakiler</span>
+                <span class="queue-badge" id="queue-count-badge">0</span>
+              </div>
+              <div class="queue-list-meta">
+                <span id="queue-total-duration">—</span>
+                <button class="btn btn-ghost btn-sm queue-refresh-btn" id="queue-refresh-btn" title="Yenile">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Queue Items List -->
+            <div class="queue-items" id="queue-items">
+              <!-- Empty state -->
+              <div class="queue-empty" id="queue-empty">
+                <div class="queue-empty-icon">📭</div>
+                <div class="queue-empty-text">
+                  Kuyrukta henüz şarkı yok.<br>
+                  <span style="opacity:0.6; font-size: var(--font-size-xs);">Şarkı eklemek için "Toplu Ekle" sekmesini kullanın.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ========== Mini Player (Sticky Bottom) ========== -->
+      <div class="mini-player" id="mini-player" style="display:none;">
+        <div class="mini-player-art">
+          <img src="" alt="" id="mini-player-art-img">
+        </div>
+        <div class="mini-player-info">
+          <div class="mini-player-title" id="mini-player-title">—</div>
+          <div class="mini-player-artist" id="mini-player-artist">—</div>
+        </div>
+        <div class="mini-player-controls">
+          <button class="mini-control-btn" id="mini-play-pause" title="Çal/Duraklat">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" id="mini-icon-play">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </button>
+          <button class="mini-control-btn" id="mini-next" title="Sonraki">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+          </button>
+        </div>
+        <div class="mini-player-progress" id="mini-player-progress">
+          <div class="mini-player-progress-fill" id="mini-player-progress-fill" style="width: 0%"></div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ================================ -->
+    <!-- SCREEN 3: Preview & Confirm      -->
+    <!-- ================================ -->
+    <section id="preview-screen" class="screen preview-screen">
+      <!-- Top Bar -->
+      <header class="topbar">
+        <button id="back-to-builder" class="btn btn-ghost btn-sm" style="gap: 4px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m15 18-6-6 6-6"/>
+          </svg>
+          Geri
+        </button>
+        <span id="preview-count" class="preview-count">0 şarkı</span>
+      </header>
+
+      <div class="preview-content">
+        <!-- Preview Header -->
+        <div class="preview-header">
+          <h2>Önizleme</h2>
+        </div>
+
+        <!-- Summary Bar -->
+        <div class="preview-summary">
+          <div class="preview-summary-item">
+            <div class="preview-summary-value" id="summary-tracks">0</div>
+            <div class="preview-summary-label">Toplam</div>
+          </div>
+          <div class="preview-summary-item">
+            <div class="preview-summary-value" id="summary-found">0/0</div>
+            <div class="preview-summary-label">Bulundu</div>
+          </div>
+          <div class="preview-summary-item">
+            <div class="preview-summary-value" id="summary-duration">0 dk</div>
+            <div class="preview-summary-label">Süre</div>
+          </div>
+        </div>
+
+        <!-- Track List -->
+        <div id="track-list" class="track-list">
+          <!-- Track cards will be rendered here -->
+        </div>
+      </div>
+
+      <!-- Bottom Action Bar -->
+      <div class="bottom-bar">
+        <div class="queue-progress" id="queue-progress" style="display:none;">
+          <div class="queue-progress-bar" id="queue-progress-bar" style="width: 0%"></div>
+        </div>
+        <button id="add-to-queue-btn" class="btn btn-primary btn-block btn-lg" disabled>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          Kuyruğa Ekle
+        </button>
+        <div class="bottom-bar-info">
+          <span>Spotify kuyruğunuza sırayla eklenir</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================================ -->
+    <!-- SCREEN 4: Success                -->
+    <!-- ================================ -->
+    <section id="success-screen" class="screen success-screen">
+      <div class="success-content anim-scale-bounce">
+        <div class="success-icon">🎉</div>
+        <h2 class="success-title">Tamamlandı!</h2>
+        <p class="success-subtitle">Şarkılar Spotify kuyruğunuza eklendi</p>
+
+        <div class="success-stats">
+          <div class="success-stat">
+            <div class="success-stat-value" id="success-count">0</div>
+            <div class="success-stat-label">Şarkı Eklendi</div>
+          </div>
+          <div class="success-stat">
+            <div class="success-stat-value" id="success-duration">0 dk</div>
+            <div class="success-stat-label">Toplam Süre</div>
+          </div>
+        </div>
+
+        <button id="new-queue-btn" class="btn btn-primary btn-block btn-lg" style="margin-top: 16px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+          Yeni Kuyruk Oluştur
+        </button>
+
+        <button class="btn btn-ghost btn-sm" onclick="window.open('spotify:', '_blank')">
+          Spotify'ı Aç →
+        </button>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- JavaScript -->
+  <script src="js/auth.js"></script>
+  <script src="js/parser.js"></script>
+  <script src="js/spotify.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
