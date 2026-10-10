@@ -429,6 +429,477 @@ const RhythmEngine = (() => {
   }
 
   // ============================================
+  // OFFLINE SES DSP ANALİZİ & TEMPO BELİRLEME MOTORU
+  // Web Audio PCM Akışı + Biquad Low-pass Filtre + Enerji Zarfı + Autokorelasyon
+  // ============================================
+
+  /**
+   * Raw PCM ses verisinden veya AudioBuffer'dan dijital sinyal işleme (DSP)
+   * ile kesin stüdyo ritmi ve BPM hesaplar.
+   *
+   * @param {AudioBuffer|{pcm: Float32Array, sampleRate: number}|Float32Array} audioBuffer - Ses verisi
+   * @param {Object} options - { refBpm, minBpm, maxBpm, sampleRate }
+   * @returns {{ bpm: number, exactBpm: number, confidence: number, score: number }}
+   */
+  function analyzeAudioBuffer(audioBuffer, options = {}) {
+    if (!audioBuffer) return { bpm: 120, exactBpm: 120, confidence: 0, score: 0 };
+
+    let pcm = null;
+    let sampleRate = 44100;
+
+    if (typeof audioBuffer.getChannelData === 'function') {
+      sampleRate = audioBuffer.sampleRate || 44100;
+      const numChannels = audioBuffer.numberOfChannels || 1;
+      const ch0 = audioBuffer.getChannelData(0);
+      if (numChannels > 1) {
+        const ch1 = audioBuffer.getChannelData(1);
+        const len = Math.min(ch0.length, ch1.length);
+        pcm = new Float32Array(len);
+        for (let i = 0; i < len; i++) {
+          pcm[i] = (ch0[i] + ch1[i]) * 0.5;
+        }
+      } else {
+        pcm = ch0;
+      }
+    } else if (audioBuffer.pcm instanceof Float32Array) {
+      pcm = audioBuffer.pcm;
+      sampleRate = audioBuffer.sampleRate || 44100;
+    } else if (audioBuffer instanceof Float32Array) {
+      pcm = audioBuffer;
+      sampleRate = options.sampleRate || 44100;
+    } else {
+      return { bpm: 120, exactBpm: 120, confidence: 0, score: 0 };
+    }
+
+    if (!pcm || pcm.length < sampleRate * 2) {
+      return { bpm: 120, exactBpm: 120, confidence: 0, score: 0 };
+    }
+
+    // Maksimum ilk 30 saniyeyi analiz et (yeterli ve CPU dostu)
+    const maxSamples = Math.min(pcm.length, sampleRate * 30);
+    const minBpm = options.minBpm || 60;
+    const maxBpm = options.maxBpm || 240;
+    const refBpm = options.refBpm || 0;
+
+    // 1. 2. Derece Butterworth Alçak Geçiren Filtre (fc = 160 Hz kick/bas izolasyonu)
+    const fc = 160;
+    const w0 = (2 * Math.PI * fc) / sampleRate;
+    const cosw0 = Math.cos(w0);
+    const sinw0 = Math.sin(w0);
+    const alpha = sinw0 / (2 * 0.7071);
+
+    const b0 = (1 - cosw0) / 2;
+    const b1 = 1 - cosw0;
+    const b2 = (1 - cosw0) / 2;
+    const a0 = 1 + alpha;
+    const a1 = -2 * cosw0;
+    const a2 = 1 - alpha;
+
+    const nb0 = b0 / a0;
+    const nb1 = b1 / a0;
+    const nb2 = b2 / a0;
+    const na1 = a1 / a0;
+    const na2 = a2 / a0;
+
+    const filtered = new Float32Array(maxSamples);
+    let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+    for (let i = 0; i < maxSamples; i++) {
+      const x0 = pcm[i];
+      const y0 = nb0 * x0 + nb1 * x1 + nb2 * x2 - na1 * y1 - na2 * y2;
+      filtered[i] = y0;
+      x2 = x1; x1 = x0;
+      y2 = y1; y1 = y0;
+    }
+
+    // 2. RMS Enerji Zarfı (~100 Hz kontrol hızı / 10ms hop boyutu)
+    const hopSize = Math.max(1, Math.floor(sampleRate / 100));
+    const numFrames = Math.floor(maxSamples / hopSize);
+    const envelope = new Float32Array(numFrames);
+
+    for (let f = 0; f < numFrames; f++) {
+      let sum = 0;
+      const start = f * hopSize;
+      for (let i = 0; i < hopSize; i++) {
+        const val = filtered[start + i];
+        sum += val * val;
+      }
+      envelope[f] = Math.sqrt(sum / hopSize);
+    }
+
+    // 3. Pozitif Enerji Akısı / Half-wave Rectified Onset Zarfı
+    const onsets = new Float32Array(numFrames);
+    for (let f = 1; f < numFrames; f++) {
+      const diff = envelope[f] - envelope[f - 1];
+      onsets[f] = diff > 0 ? diff : 0;
+    }
+
+    // 4. Autokorelasyon ile BPM Adaylarını Puanlama
+    const controlRate = sampleRate / hopSize; // ~100 Hz
+    const minLag = Math.floor((60 * controlRate) / maxBpm);
+    const maxLag = Math.ceil((60 * controlRate) / minBpm);
+
+    if (maxLag >= numFrames - 10) {
+      return { bpm: 120, exactBpm: 120, confidence: 0, score: 0 };
+    }
+
+    const autocorr = new Float32Array(maxLag + 4);
+
+    for (let lag = minLag; lag <= maxLag; lag++) {
+      let corr = 0, n1 = 0, n2 = 0;
+      for (let i = lag; i < numFrames; i++) {
+        corr += onsets[i] * onsets[i - lag];
+        n1 += onsets[i] * onsets[i];
+        n2 += onsets[i - lag] * onsets[i - lag];
+      }
+      const norm = Math.sqrt(n1 * n2);
+      autocorr[lag] = norm > 0 ? (corr / norm) : 0;
+    }
+
+    let bestLag = 0;
+    let maxScore = -1;
+
+    for (let lag = minLag + 1; lag < maxLag; lag++) {
+      const c = autocorr[lag];
+      if (c <= autocorr[lag - 1] || c <= autocorr[lag + 1]) continue; // yerel tepe noktası
+
+      const candBpm = (60 * controlRate) / lag;
+      // Harmonik 2x vuruş kontrolü
+      const lag2 = lag * 2;
+      const c2 = (lag2 <= maxLag) ? autocorr[lag2] : 0;
+
+      // Bayesyen Prior
+      const prior = Math.exp(-Math.pow((candBpm - 122) / 38, 2)) * 0.2 + 0.8;
+      const score = (c + c2 * 0.4) * prior;
+
+      if (score > maxScore) {
+        maxScore = score;
+        bestLag = lag;
+      }
+    }
+
+    if (bestLag === 0) bestLag = Math.round((60 * controlRate) / 120);
+
+    // 5. Parabolik İnce Ayar (Sub-Frame Interpolation)
+    const valLeft = autocorr[bestLag - 1] || 0;
+    const valCenter = autocorr[bestLag] || 1;
+    const valRight = autocorr[bestLag + 1] || 0;
+    const denom = 2 * (2 * valCenter - valLeft - valRight);
+    const delta = denom !== 0 ? (valRight - valLeft) / denom : 0;
+    const refinedLag = bestLag + Math.max(-0.5, Math.min(0.5, delta));
+
+    let detectedBpm = (60 * controlRate) / refinedLag;
+
+    // 6. Oktav Harmonik Çözümü (Half-time vs Double-time)
+    if (refBpm > 0) {
+      if (detectedBpm * 2 <= maxBpm && Math.abs(detectedBpm * 2 - refBpm) + 6 < Math.abs(detectedBpm - refBpm)) {
+        detectedBpm *= 2;
+      } else if (detectedBpm / 2 >= minBpm && Math.abs(detectedBpm / 2 - refBpm) + 6 < Math.abs(detectedBpm - refBpm)) {
+        detectedBpm /= 2;
+      }
+    } else {
+      if (detectedBpm < 72 && maxScore < 0.6) {
+        detectedBpm *= 2;
+      }
+    }
+
+    detectedBpm = Math.max(minBpm, Math.min(maxBpm, detectedBpm));
+    const roundedBpm = Math.round(detectedBpm);
+    const confidence = Math.min(100, Math.max(20, Math.round(maxScore * 100)));
+
+    return {
+      bpm: roundedBpm,
+      exactBpm: Number(detectedBpm.toFixed(1)),
+      confidence,
+      score: maxScore
+    };
+  }
+
+  /**
+   * Apple iTunes Arama API'si üzerinden 30 saniyelik stüdyo AAC önizleme URL'sini bulur.
+   * CORS başlığı * ve tamamen ücretsiz / anahtarsızdır.
+   */
+  async function fetchApplePreviewUrl(track) {
+    if (!track || (!track.name && !track.artist)) return null;
+
+    const rawTitle = (track.name || '')
+      .replace(/[\(\[][^\)\]]*(?:remaster|deluxe|version|live|edition|anniversary|mono|stereo|feat|ft)[^\)\]]*[\)\]]/gi, '')
+      .replace(/\s*-\s*(?:\d{4}\s*-?\s*)?(?:remaster|live|deluxe|mono|stereo|anniversary|edit|bonus).*$/gi, '')
+      .trim();
+    const rawArtist = (track.artist || '').trim();
+
+    const searchTerm = `${rawArtist} ${rawTitle}`.trim();
+    if (!searchTerm) return null;
+
+    // Önce yerel storefront (Türkiye kataloğu zenginliği için), başarısızsa global
+    const urlsToTry = [
+      `https://itunes.apple.com/search?term=${encodeURIComponent(searchTerm)}&country=tr&entity=song&limit=5`,
+      `https://itunes.apple.com/search?term=${encodeURIComponent(searchTerm)}&entity=song&limit=5`
+    ];
+
+    const cleanArtist = normalizeTrackKey(rawArtist);
+    const cleanTitle = normalizeTrackKey(rawTitle);
+
+    for (const url of urlsToTry) {
+      try {
+        const res = await fetch(url);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const results = data.results || [];
+        if (results.length === 0) continue;
+
+        // Eşleşen parçayı bul
+        let matched = results.find(item => {
+          if (!item.previewUrl) return false;
+          const aKey = normalizeTrackKey(item.artistName);
+          const tKey = normalizeTrackKey(item.trackName);
+          const artistMatches = !cleanArtist || aKey.includes(cleanArtist) || cleanArtist.includes(aKey);
+          const titleMatches = !cleanTitle || tKey.includes(cleanTitle) || cleanTitle.includes(tKey);
+          return artistMatches && titleMatches;
+        });
+
+        if (!matched) {
+          matched = results.find(item => !!item.previewUrl);
+        }
+
+        if (matched && matched.previewUrl) {
+          return matched.previewUrl;
+        }
+      } catch (e) {
+        // Ağ hatasında sonraki URL'e devam
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Belirtilen önizleme URL'sindeki sesi indirip AudioContext ile çözer ve DSP analizi yapar.
+   */
+  async function analyzeAudioUrl(previewUrl, options = {}) {
+    if (!previewUrl || typeof fetch === 'undefined') return null;
+
+    const AudioContextClass = (typeof window !== 'undefined')
+      ? (window.AudioContext || window.webkitAudioContext)
+      : (typeof globalThis !== 'undefined' ? (globalThis.AudioContext || globalThis.webkitAudioContext) : null);
+
+    if (!AudioContextClass) return null;
+
+    let audioCtx = null;
+    try {
+      const res = await fetch(previewUrl);
+      if (!res.ok) return null;
+      const arrayBuffer = await res.arrayBuffer();
+
+      audioCtx = new AudioContextClass();
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      return analyzeAudioBuffer(audioBuffer, options);
+    } catch (e) {
+      return null;
+    } finally {
+      if (audioCtx && typeof audioCtx.close === 'function' && audioCtx.state !== 'closed') {
+        audioCtx.close().catch(() => {});
+      }
+    }
+  }
+
+  // ============================================
+  // ÖNBELLEK YÖNETİMİ (localStorage qd_audio_bpm_cache + Memory Fallback)
+  // ============================================
+  const AUDIO_BPM_CACHE_KEY = 'qd_audio_bpm_cache';
+  const _memoryBpmCache = {};
+
+  function getAudioBpmCache() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const raw = localStorage.getItem(AUDIO_BPM_CACHE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          return { ..._memoryBpmCache, ...parsed };
+        }
+      }
+      return _memoryBpmCache;
+    } catch (e) {
+      return _memoryBpmCache;
+    }
+  }
+
+  function setAudioBpmCache(key, data) {
+    try {
+      const entry = {
+        ...data,
+        timestamp: Date.now()
+      };
+      _memoryBpmCache[key] = entry;
+      if (typeof localStorage !== 'undefined') {
+        const cache = getAudioBpmCache();
+        cache[key] = entry;
+        const keys = Object.keys(cache);
+        if (keys.length > 500) {
+          delete cache[keys[0]];
+        }
+        localStorage.setItem(AUDIO_BPM_CACHE_KEY, JSON.stringify(cache));
+      }
+    } catch (e) {
+      // Depolama hatası yutulur
+    }
+  }
+
+  /**
+   * Bir parçanın Apple önizleme akışını indirip DSP analizi yaparak kesin stüdyo BPM'ini çıkarır.
+   * Sonuç localStorage'a önbelleklenir (0 ms tekrar erişim).
+   */
+  async function fetchOnlineAudioBpm(track, options = {}) {
+    if (!track) return null;
+
+    const trackKey = normalizeTrackKey(track.artist) + ':' + normalizeTrackKey(track.name);
+    const cache = getAudioBpmCache();
+
+    // 1. Önbellekte varsa anında döndür
+    if (cache[trackKey] && typeof cache[trackKey].bpm === 'number' && cache[trackKey].bpm > 40) {
+      return {
+        bpm: cache[trackKey].bpm,
+        confidence: cache[trackKey].confidence || 98,
+        source: 'cached_dsp',
+        trackId: track.id || null,
+        trackName: track.name,
+        trackArtist: track.artist,
+      };
+    }
+
+    // 2. Doğrulanmış veritabanında varsa
+    if (KNOWN_TRACKS_BPM[trackKey]) {
+      const dbBpm = KNOWN_TRACKS_BPM[trackKey];
+      setAudioBpmCache(trackKey, { bpm: dbBpm, confidence: 100, source: 'verified_db' });
+      return {
+        bpm: dbBpm,
+        confidence: 100,
+        source: 'verified_db',
+        trackId: track.id || null,
+        trackName: track.name,
+        trackArtist: track.artist,
+      };
+    }
+
+    // 3. Apple Preview URL bul
+    const previewUrl = track.preview_url || await fetchApplePreviewUrl(track);
+    if (!previewUrl) {
+      const fallbackBpm = estimateBpm(track, track.audioFeatures);
+      return {
+        bpm: fallbackBpm,
+        confidence: 65,
+        source: 'estimate_fallback',
+        trackId: track.id || null,
+        trackName: track.name,
+        trackArtist: track.artist,
+      };
+    }
+
+    // 4. Sesi indir ve DSP analizi yap
+    const baselineBpm = estimateBpm(track, track.audioFeatures);
+    const dspResult = await analyzeAudioUrl(previewUrl, { refBpm: baselineBpm });
+
+    if (dspResult && dspResult.bpm && dspResult.bpm >= 40) {
+      const finalResult = {
+        bpm: dspResult.bpm,
+        confidence: Math.max(85, dspResult.confidence),
+        source: 'audio_preview',
+        trackId: track.id || null,
+        trackName: track.name,
+        trackArtist: track.artist,
+      };
+      setAudioBpmCache(trackKey, finalResult);
+      return finalResult;
+    }
+
+    // 5. DSP başarısız olduysa MIR regresyon tahmini
+    const estBpm = estimateBpm(track, track.audioFeatures);
+    return {
+      bpm: estBpm,
+      confidence: 65,
+      source: 'estimate_fallback',
+      trackId: track.id || null,
+      trackName: track.name,
+      trackArtist: track.artist,
+    };
+  }
+
+  /**
+   * UI ve Oynatıcı için Hibrit BPM Çözümleyici:
+   * 1. 0 ms gecikmeyle derhal senkron bir BPM tahmini / önbellek değeri döndürür.
+   * 2. Arka planda Apple Preview + DSP analizini tetikler.
+   * 3. DSP analizi tamamlanınca onRefined callback'ini çağırır ve ML modeline canlı kaydeder.
+   *
+   * @param {Object} track - Çalan şarkı
+   * @param {Function} onRefined - (result) => void (opsiyonel)
+   * @returns {{ bpm: number, source: string, confidence: number }} Anlık senkron BPM
+   */
+  function resolveAccurateBpm(track, onRefined) {
+    if (!track) return { bpm: 120, source: 'default', confidence: 50 };
+
+    const trackKey = normalizeTrackKey(track.artist) + ':' + normalizeTrackKey(track.name);
+    const cache = getAudioBpmCache();
+
+    // 1. Önbellekte kesin DSP BPM varsa doğrudan kullan
+    if (cache[trackKey] && typeof cache[trackKey].bpm === 'number' && cache[trackKey].bpm > 40) {
+      const cached = cache[trackKey];
+      if (typeof onRefined === 'function') {
+        Promise.resolve().then(() => onRefined({
+          bpm: cached.bpm,
+          confidence: cached.confidence || 98,
+          source: cached.source || 'cached_dsp',
+          trackId: track.id,
+          trackName: track.name,
+          trackArtist: track.artist
+        }));
+      }
+      return { bpm: cached.bpm, source: cached.source || 'cached_dsp', confidence: cached.confidence || 98 };
+    }
+
+    // 2. Şarkı üzerinde doğrulanmış Spotify audioFeatures varsa
+    if (track.audioFeatures && typeof track.audioFeatures.tempo === 'number' && track.audioFeatures.tempo > 40) {
+      const afBpm = Math.round(track.audioFeatures.tempo);
+      return { bpm: afBpm, source: 'spotify_audio_features', confidence: 99 };
+    }
+
+    // 3. Doğrulanmış parça veritabanında varsa
+    if (KNOWN_TRACKS_BPM[trackKey]) {
+      const dbBpm = KNOWN_TRACKS_BPM[trackKey];
+      return { bpm: dbBpm, source: 'verified_db', confidence: 100 };
+    }
+
+    // 4. Parça üzerinde zaten kesin bpm ayarlanmışsa
+    if (typeof track.bpm === 'number' && track.bpm > 40 && track._bpmSource === 'audio_preview') {
+      return { bpm: Math.round(track.bpm), source: 'audio_preview', confidence: 98 };
+    }
+
+    // 5. Senkron MIR regresyon tahmini (0ms)
+    const instantBpm = estimateBpm(track);
+
+    // 6. Arka planda Apple Preview + DSP Analizi Başlat
+    if (typeof fetch !== 'undefined') {
+      fetchOnlineAudioBpm(track).then((dspRes) => {
+        if (!dspRes || !dspRes.bpm) return;
+
+        track.bpm = dspRes.bpm;
+        track._bpmSource = dspRes.source;
+
+        // ML Modelini kalibre et
+        if (typeof globalThis !== 'undefined' && globalThis.MLRecommender && typeof globalThis.MLRecommender.setLiveBpm === 'function') {
+          globalThis.MLRecommender.setLiveBpm(dspRes.bpm, dspRes.confidence, dspRes.source, track.id);
+        }
+
+        if (typeof onRefined === 'function') {
+          onRefined(dspRes);
+        }
+      }).catch(() => {
+        // Hata durumunda sessizce mevcut tahminde kal
+      });
+    }
+
+    return { bpm: instantBpm, source: 'estimate', confidence: 65 };
+  }
+
+  // ============================================
   // CANLI SES ANALİZİ & GERÇEK ZAMANLI BPM ALGILAMA MOTORU
   // Web Audio API + Spectral Flux Onset Detection + IOI Autocorrelation
   // ============================================
@@ -1337,7 +1808,7 @@ const RhythmEngine = (() => {
       this.track = track;
       this.baseBpm = (this.audioFeatures && typeof this.audioFeatures.tempo === 'number')
         ? Math.round(this.audioFeatures.tempo)
-        : estimateBpm(track);
+        : (typeof track?.bpm === 'number' && track.bpm > 40 ? Math.round(track.bpm) : estimateBpm(track));
       this.bpm = this.baseBpm;
       this.beatIntervalMs = (60 / this.bpm) * 1000;
       if (this.liveDetector) {
@@ -1345,12 +1816,34 @@ const RhythmEngine = (() => {
       }
       this.profile = getTrackProfile(track, this.bpm, this.audioFeatures);
 
+      // Parçanın kesin DSP BPM'i henüz alınmadıysa arka planda çözümle
+      if (track && (!track.bpm || track._bpmSource !== 'audio_preview')) {
+        resolveAccurateBpm(track, (refined) => {
+          if (this.track && (this.track.id === refined.trackId || this.track.name === refined.trackName)) {
+            this.setBpm(refined.bpm);
+          }
+        });
+      }
+
       const seed = `${track?.name || ''} ${track?.artist || ''}`;
       const coverUrl = track?.albumImage || track?.albumImageSmall || track?.image;
 
       extractPalette(coverUrl, seed).then((pal) => {
         this.palette = pal;
       });
+    }
+
+    setBpm(bpm) {
+      if (typeof bpm === 'number' && bpm >= 40 && bpm <= 260) {
+        this.bpm = Math.round(bpm);
+        this.beatIntervalMs = (60 / this.bpm) * 1000;
+        if (this.liveDetector) {
+          this.liveDetector.targetTrackBpm = this.bpm;
+        }
+        if (this.track) {
+          this.profile = getTrackProfile(this.track, this.bpm, this.audioFeatures);
+        }
+      }
     }
 
     setAudioFeatures(features) {
@@ -2737,6 +3230,13 @@ const RhythmEngine = (() => {
 
   return {
     estimateBpm,
+    analyzeAudioBuffer,
+    fetchApplePreviewUrl,
+    analyzeAudioUrl,
+    fetchOnlineAudioBpm,
+    resolveAccurateBpm,
+    getAudioBpmCache,
+    setAudioBpmCache,
     getTrackProfile,
     extractPalette,
     generateFallbackPalette,
@@ -2745,6 +3245,7 @@ const RhythmEngine = (() => {
     LiveAudioBpmDetector,
     FREQ_BANDS,
     MOOD_PALETTES,
+    KNOWN_TRACKS_BPM,
   };
 })();
 

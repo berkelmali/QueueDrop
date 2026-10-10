@@ -777,7 +777,9 @@
     // 3. RhythmEngine varsa doğrulanmış veritabanı veya MIR regresyon tahminini al
     // 4. Varsayılan 122
     let bpm = liveBpmOverride || track.bpm;
-    if (!bpm && rhythmEngineRef && typeof rhythmEngineRef.estimateBpm === 'function') {
+    if (!bpm && rhythmEngineRef && typeof rhythmEngineRef.resolveAccurateBpm === 'function') {
+      bpm = rhythmEngineRef.resolveAccurateBpm(track).bpm;
+    } else if (!bpm && rhythmEngineRef && typeof rhythmEngineRef.estimateBpm === 'function') {
       bpm = rhythmEngineRef.estimateBpm(track);
     }
     if (!bpm) {

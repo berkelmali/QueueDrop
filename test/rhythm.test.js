@@ -133,6 +133,59 @@ visualizer.stopLiveAudio();
 assert.strictEqual(visualizer.isLiveAudioActive, false);
 console.log('  ✅ PASS: Visualizer startLiveAudio / stopLiveAudio lifecycle verified');
 
+// 9. Çevrimdışı Dijital Sinyal İşleme (DSP) ve Autokorelasyon Temposu
+assert(typeof RhythmEngine.analyzeAudioBuffer === 'function', 'analyzeAudioBuffer should be exported');
+
+function generateKickPcm(bpm, durationSec = 10, sampleRate = 44100) {
+  const total = durationSec * sampleRate;
+  const pcm = new Float32Array(total);
+  const beatInterval = (60 / bpm) * sampleRate;
+  for (let t = 0; t < total; t += beatInterval) {
+    const start = Math.round(t);
+    const len = Math.min(total - start, Math.round(0.12 * sampleRate));
+    for (let i = 0; i < len; i++) {
+      const time = i / sampleRate;
+      const freq = 120 * Math.exp(-time * 25) + 45;
+      const amp = Math.exp(-time * 20);
+      pcm[start + i] += Math.sin(2 * Math.PI * freq * time) * amp;
+    }
+  }
+  return { pcm, sampleRate };
+}
+
+// 128 BPM Sentetik Kick Parçası DSP Testi
+const kick128 = generateKickPcm(128, 12, 44100);
+const dsp128 = RhythmEngine.analyzeAudioBuffer(kick128, { refBpm: 128 });
+assert(Math.abs(dsp128.bpm - 128) <= 1, `DSP should detect ~128 BPM on synthetic kick track, got ${dsp128.bpm}`);
+assert(dsp128.confidence > 50, `DSP confidence should be high, got ${dsp128.confidence}%`);
+console.log(`  ✅ PASS: Offline DSP beat analysis locks on 128 BPM (${dsp128.bpm} BPM, conf: ${dsp128.confidence}%)`);
+
+// 96 BPM Sentetik Hip-hop / Chill Parçası DSP Testi
+const kick96 = generateKickPcm(96, 12, 44100);
+const dsp96 = RhythmEngine.analyzeAudioBuffer(kick96, { refBpm: 96 });
+assert(Math.abs(dsp96.bpm - 96) <= 1, `DSP should detect ~96 BPM, got ${dsp96.bpm}`);
+console.log(`  ✅ PASS: Offline DSP beat analysis locks on 96 BPM (${dsp96.bpm} BPM)`);
+
+// 10. Hibrit BPM Çözümleyici & Önbellek Katmanı (resolveAccurateBpm & Cache)
+assert(typeof RhythmEngine.resolveAccurateBpm === 'function', 'resolveAccurateBpm should be exported');
+const resolved1 = RhythmEngine.resolveAccurateBpm({ name: 'Enter Sandman', artist: 'Metallica' });
+assert.strictEqual(resolved1.bpm, 123, `Enter Sandman should resolve to 123 BPM from verified DB, got ${resolved1.bpm}`);
+assert.strictEqual(resolved1.source, 'verified_db', 'Source should be verified_db');
+console.log(`  ✅ PASS: Hybrid resolver returns 0ms instant verified DB tempo (${resolved1.bpm} BPM, source: ${resolved1.source})`);
+
+// Önbellek Testi
+RhythmEngine.setAudioBpmCache('testartist:testtrack', { bpm: 135, confidence: 99, source: 'audio_preview' });
+const cachedRes = RhythmEngine.resolveAccurateBpm({ name: 'Test Track', artist: 'Test Artist' });
+assert.strictEqual(cachedRes.bpm, 135, `Cached track should return 135 BPM, got ${cachedRes.bpm}`);
+assert(cachedRes.source === 'cached_dsp' || cachedRes.source === 'audio_preview', `Source should be cached_dsp or audio_preview, got ${cachedRes.source}`);
+console.log(`  ✅ PASS: Hybrid resolver instantly retrieves cached DSP analysis (${cachedRes.bpm} BPM, source: ${cachedRes.source})`);
+
+// 11. Visualizer setBpm Metodu ve Tempo Kalibrasyonu
+visualizer.setBpm(132);
+assert.strictEqual(visualizer.bpm, 132, 'Visualizer BPM should be updated to 132');
+assert.strictEqual(Math.round(visualizer.beatIntervalMs), Math.round((60 / 132) * 1000), 'Beat interval should match 132 BPM');
+console.log('  ✅ PASS: Visualizer setBpm dynamic tempo calibration verified (132 BPM)');
+
 console.log('\n========================================');
 console.log('ALL RHYTHM & LIVE BPM TESTS PASSED');
 console.log('========================================\n');

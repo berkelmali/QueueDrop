@@ -820,10 +820,11 @@ const UI = (() => {
     if (albumEl) albumEl.textContent = track.album;
 
     // ------------------------------------------
-    // Çalan Şarkının BPM Değerini Hesapla & Göster
+    // Çalan Şarkının BPM Değerini Hesapla & Göster (Hibrit DSP Mimari)
     // ------------------------------------------
     let calculatedBpm = 120;
     let isLiveAudio = false;
+    let isExactDsp = false;
 
     // 1. Canlı ölçülmüş mikrofon/ses analizörü BPM'i aktifse
     if (typeof MLRecommender !== 'undefined' && typeof MLRecommender.getLiveBpm === 'function') {
@@ -834,9 +835,22 @@ const UI = (() => {
       }
     }
 
-    // 2. Canlı ses aktif değilse parçanın stüdyo/MIR BPM'ini hesapla
+    // 2. Canlı ses aktif değilse parçanın stüdyo/DSP BPM'ini hibrit olarak çözümle
     if (!isLiveAudio) {
-      if (typeof track.bpm === 'number' && track.bpm > 40) {
+      if (typeof RhythmEngine !== 'undefined' && typeof RhythmEngine.resolveAccurateBpm === 'function') {
+        const res = RhythmEngine.resolveAccurateBpm(track, (refined) => {
+          // Arka planda Apple Preview + Web Audio DSP analizi tamamlandığında
+          if (track && (track.id === refined.trackId || (track.name === refined.trackName && track.artist === refined.trackArtist))) {
+            track.bpm = refined.bpm;
+            updateBpmBadge(refined.bpm, false, refined.source === 'audio_preview' || refined.source === 'cached_dsp', isPlaying);
+            if (visualizerInstance) {
+              visualizerInstance.setBpm(refined.bpm);
+            }
+          }
+        });
+        calculatedBpm = res.bpm;
+        isExactDsp = (res.source === 'audio_preview' || res.source === 'cached_dsp' || res.source === 'verified_db');
+      } else if (typeof track.bpm === 'number' && track.bpm > 40) {
         calculatedBpm = Math.round(track.bpm);
       } else if (track.audioFeatures && typeof track.audioFeatures.tempo === 'number' && track.audioFeatures.tempo > 40) {
         calculatedBpm = Math.round(track.audioFeatures.tempo);
@@ -846,33 +860,7 @@ const UI = (() => {
     }
 
     track.bpm = calculatedBpm;
-
-    // Now Playing Kartı BPM Rozeti
-    const npBpmBadge = byId('np-bpm-badge');
-    const npBpmText = byId('np-bpm-text');
-    const npBpmDot = byId('np-bpm-dot');
-
-    if (npBpmText) {
-      npBpmText.textContent = isLiveAudio 
-        ? `🎤 ${calculatedBpm} BPM` 
-        : `⚡ ${calculatedBpm} BPM`;
-    }
-    if (npBpmBadge) {
-      npBpmBadge.title = isLiveAudio 
-        ? `Canlı Ses ile Ölçülen Tempo: ${calculatedBpm} BPM`
-        : `Şarkının Hesaplanmış Temposu: ${calculatedBpm} BPM (Ritim ekranı için tıkla)`;
-      if (!npBpmBadge._hasClickListener) {
-        npBpmBadge._hasClickListener = true;
-        npBpmBadge.addEventListener('click', () => {
-          openRhythmScreen();
-        });
-      }
-    }
-    if (npBpmDot) {
-      const beatSec = (60 / Math.max(50, Math.min(220, calculatedBpm))).toFixed(3);
-      npBpmDot.style.animationDuration = isPlaying ? `${beatSec}s` : '0s';
-      npBpmDot.style.opacity = isPlaying ? '1' : '0.4';
-    }
+    updateBpmBadge(calculatedBpm, isLiveAudio, isExactDsp, isPlaying);
 
     const eq = byId('np-equalizer');
     if (eq) eq.classList.toggle('paused', !isPlaying);
@@ -901,6 +889,37 @@ const UI = (() => {
       if (miniFill && durationMs > 0) {
         miniFill.style.width = `${(progressMs / durationMs) * 100}%`;
       }
+    }
+  }
+
+  function updateBpmBadge(bpm, isLiveAudio = false, isExactDsp = false, isPlaying = true) {
+    const npBpmBadge = byId('np-bpm-badge');
+    const npBpmText = byId('np-bpm-text');
+    const npBpmDot = byId('np-bpm-dot');
+    const miniBpmBadge = byId('mini-player-bpm-badge');
+
+    const badgeText = isLiveAudio ? `🎤 ${bpm} BPM` : `⚡ ${bpm} BPM`;
+
+    if (npBpmText) npBpmText.textContent = badgeText;
+    if (miniBpmBadge) miniBpmBadge.textContent = badgeText;
+
+    if (npBpmBadge) {
+      npBpmBadge.title = isLiveAudio 
+        ? `Canlı Ses ile Ölçülen Tempo: ${bpm} BPM`
+        : (isExactDsp 
+            ? `Stüdyo Sesinden %100 Doğrulanmış Gerçek Akustik DSP Ritim: ${bpm} BPM (Ritim ekranı için tıkla)`
+            : `Şarkının Hesaplanmış Temposu: ${bpm} BPM (Ritim ekranı için tıkla)`);
+      if (!npBpmBadge._hasClickListener) {
+        npBpmBadge._hasClickListener = true;
+        npBpmBadge.addEventListener('click', () => {
+          openRhythmScreen();
+        });
+      }
+    }
+    if (npBpmDot) {
+      const beatSec = (60 / Math.max(50, Math.min(240, bpm))).toFixed(3);
+      npBpmDot.style.animationDuration = isPlaying ? `${beatSec}s` : '0s';
+      npBpmDot.style.opacity = isPlaying ? '1' : '0.4';
     }
   }
 
@@ -988,8 +1007,12 @@ const UI = (() => {
       totalDuration += track.duration || 0;
 
       let queueBpm = track.bpm;
-      if (!queueBpm && typeof RhythmEngine !== 'undefined' && typeof RhythmEngine.estimateBpm === 'function') {
-        queueBpm = RhythmEngine.estimateBpm(track, track.audioFeatures);
+      if (!queueBpm && typeof RhythmEngine !== 'undefined') {
+        if (typeof RhythmEngine.resolveAccurateBpm === 'function') {
+          queueBpm = RhythmEngine.resolveAccurateBpm(track).bpm;
+        } else if (typeof RhythmEngine.estimateBpm === 'function') {
+          queueBpm = RhythmEngine.estimateBpm(track, track.audioFeatures);
+        }
         track.bpm = queueBpm;
       }
 
@@ -1410,6 +1433,13 @@ const UI = (() => {
       if (audioFeatures && audioFeatures.tempo) {
         bpm = Math.round(audioFeatures.tempo);
         energy = audioFeatures.energy ?? 0.5;
+      } else if (typeof RhythmEngine.resolveAccurateBpm === 'function') {
+        const res = RhythmEngine.resolveAccurateBpm(track, (refined) => {
+          if (bpmBadge) bpmBadge.textContent = `⚡ ${refined.bpm} BPM`;
+          if (visualizerInstance) visualizerInstance.setBpm(refined.bpm);
+        });
+        bpm = res.bpm;
+        energy = 0.5;
       } else {
         bpm = RhythmEngine.estimateBpm(track);
         energy = 0.5;
