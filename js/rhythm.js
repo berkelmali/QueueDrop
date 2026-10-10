@@ -1105,6 +1105,7 @@ const RhythmEngine = (() => {
       // Nesneler
       this.blobs = [];
       this.lavaBubbles = [];
+      this.bottomLavaEmbers = [];
       this.shockwaves = [];
       this.laserSparks = [];
       this.stars = [];
@@ -1198,6 +1199,24 @@ const RhythmEngine = (() => {
           alpha: 0.25 + Math.random() * 0.65,
           phase: Math.random() * Math.PI * 2,
           hueOffset: Math.random() * 40 - 20,
+        });
+      }
+
+      // 60 Adet Alt Kısımda Yaşayan Akkor Lav Tanecikleri & Kaynayan Magma Korları
+      this.bottomLavaEmbers = [];
+      for (let i = 0; i < 60; i++) {
+        const emberR = 2.2 + Math.random() * 5.2;
+        this.bottomLavaEmbers.push({
+          x: Math.random() * w,
+          y: h - (Math.random() * Math.min(h * 0.24, 180) + 8),
+          baseRadius: emberR,
+          radius: emberR,
+          vx: (Math.random() - 0.5) * 0.85,
+          vy: -(0.5 + Math.random() * 1.9),
+          phase: Math.random() * Math.PI * 2,
+          wobbleSpeed: 0.03 + Math.random() * 0.045,
+          heat: 0.6 + Math.random() * 0.4,
+          glow: 1.0,
         });
       }
     }
@@ -1305,6 +1324,12 @@ const RhythmEngine = (() => {
             mb.y *= scaleY;
           }
         }
+        if (this.bottomLavaEmbers && this.bottomLavaEmbers.length > 0) {
+          for (let em of this.bottomLavaEmbers) {
+            em.x *= scaleX;
+            em.y *= scaleY;
+          }
+        }
       }
     }
 
@@ -1397,6 +1422,20 @@ const RhythmEngine = (() => {
             b.sloshVx = (b.sloshVx || 0) + nx * push * 1.8;
             b.sloshVy = (b.sloshVy || 0) + ny * push * 1.8;
             b.phase += 1.6;
+          }
+        }
+        if (this.bottomLavaEmbers) {
+          for (let em of this.bottomLavaEmbers) {
+            const dx = em.x - rx;
+            const dy = em.y - ry;
+            const dist = Math.hypot(dx, dy);
+            if (dist < 260 && dist > 1) {
+              const push = (isMajor ? 5.5 : 3.0) * (1 - dist / 260);
+              em.vx += (dx / dist) * push;
+              em.vy += (dy / dist) * push - 2.2;
+              em.glow = Math.min(2.5, em.glow + 1.2);
+              em.heat = 1.0;
+            }
           }
         }
       }
@@ -1786,6 +1825,15 @@ const RhythmEngine = (() => {
                 b.scaleY = Math.min(1.5, b.scaleY + kick * 0.12);
                 b.scaleX = Math.max(0.7, b.scaleX - kick * 0.08);
               }
+              if (this.bottomLavaEmbers) {
+                for (let em of this.bottomLavaEmbers) {
+                  if (Math.random() < (isDownbeat ? 0.75 : 0.45)) {
+                    em.vy -= kick * (0.75 + Math.random() * 1.6);
+                    em.glow = Math.min(2.4, em.glow + 1.1 * kick);
+                    em.heat = Math.min(1.0, em.heat + 0.35);
+                  }
+                }
+              }
             } else if (this.mood === 'pulse') {
               // Lazer kıvılcımları merkezden dışarı patlat
               const cx = this.width / 2;
@@ -2029,6 +2077,75 @@ const RhythmEngine = (() => {
       ctx.lineTo(w, h);
       ctx.closePath();
       ctx.fill();
+
+      // 4b. Alt Kısımda Yaşayan Akkor Lav Tanecikleri & Kaynayan Magma Korları
+      if (this.bottomLavaEmbers && this.bottomLavaEmbers.length > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        const bottomBed = h - 10;
+        const ceilingBed = h - Math.min(h * 0.30, 240);
+
+        for (let i = 0; i < this.bottomLavaEmbers.length; i++) {
+          const em = this.bottomLavaEmbers[i];
+          em.phase += em.wobbleSpeed * speedMult;
+
+          // Dinamik ivmelenme & viskozite
+          em.y += em.vy * speedMult;
+          em.x += (em.vx + Math.sin(em.phase) * 0.45) * speedMult;
+          em.vy += 0.044 * speedMult; // Tabana geri çekilme
+
+          em.glow *= 0.95;
+          if (em.glow < 1.0) em.glow = 1.0;
+
+          // Sınırlar: tabana değince tekrar fışkır
+          if (em.y > bottomBed) {
+            em.y = bottomBed;
+            em.vy = -(0.8 + Math.random() * 2.3 + heaterBoost * 1.7);
+            em.vx = (Math.random() - 0.5) * 0.95;
+            em.heat = 0.7 + Math.random() * 0.3;
+          } else if (em.y < ceilingBed) {
+            em.vy = Math.abs(em.vy) * 0.5 + 0.35;
+            em.heat = Math.max(0.2, em.heat - 0.04);
+          }
+
+          if (em.x < 12) em.x = w - 12;
+          if (em.x > w - 12) em.x = 12;
+
+          // Görselleştirme: Akkor damla formu
+          const er = (em.baseRadius + beat * 1.8) * em.glow;
+          const stretchY = Math.min(1.45, Math.max(0.75, 1.0 - em.vy * 0.14));
+          const stretchX = 1.0 / Math.sqrt(stretchY);
+
+          ctx.save();
+          ctx.translate(em.x, em.y);
+
+          const emberGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, er * 1.9);
+          if (em.heat > 0.55) {
+            emberGrad.addColorStop(0, 'rgba(255, 255, 230, 0.98)');     // Akkor beyaz-sarı
+            emberGrad.addColorStop(0.30, 'rgba(255, 150, 30, 0.94)');   // Akkor mandalina
+            emberGrad.addColorStop(0.70, 'rgba(247, 37, 133, 0.75)');   // Magma gülü
+            emberGrad.addColorStop(1.0, 'rgba(255, 60, 20, 0)');
+          } else {
+            emberGrad.addColorStop(0, 'rgba(255, 160, 45, 0.92)');       // Turuncu
+            emberGrad.addColorStop(0.45, 'rgba(220, 25, 90, 0.75)');     // Yakut kırmızısı
+            emberGrad.addColorStop(1.0, 'rgba(140, 10, 50, 0)');
+          }
+
+          ctx.fillStyle = emberGrad;
+          ctx.beginPath();
+          ctx.ellipse(0, 0, er * stretchX, er * stretchY, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Akkor mikro-parıltı noktası
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+          ctx.beginPath();
+          ctx.arc(-er * 0.18, -er * 0.18, Math.max(0.7, er * 0.28), 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.restore();
+        }
+        ctx.restore();
+      }
 
       // 5. Tavanda Soğuma Menisküsü (Soft Ceiling Meniscus)
       const topPoolH = 12 + Math.sin(time * 0.0012) * 3;
